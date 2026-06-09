@@ -1,0 +1,24 @@
+# Render Blueprint — backend web service (Docker).
+# Dashboard → New → Blueprint → connect this repo.
+services:
+  - type: web
+    name: csr-studio-api
+    runtime: docker
+    plan: free
+    region: oregon            # pick the region closest to your Supabase DB
+    rootDir: backend          # Dockerfile + pom live here
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      # CORS — set to the deployed Netlify origin (no trailing slash).
+      - { key: APP_CORS_ALLOWED_ORIGINS, sync: false }   # https://<app>.netlify.app
+
+      # ---- wire these once persistence / auth / push are added (not consumed yet) ----
+      # Supabase Supavisor POOLER, port 5432 (session mode). NOT the direct IPv6 endpoint.
+      - { key: DATABASE_URL,      sync: false }   # jdbc:postgresql://aws-1-<region>.pooler.supabase.com:5432/postgres?sslmode=require
+      - { key: DB_USERNAME,       sync: false }   # postgres.<project-ref>   (pooler routes by username prefix)
+      - { key: DB_PASSWORD,       sync: false }
+      - { key: JWT_SECRET,        sync: false }   # openssl rand -base64 48
+      - { key: VAPID_PUBLIC_KEY,  sync: false }   # npx web-push generate-vapid-keys
+      - { key: VAPID_PRIVATE_KEY, sync: false }

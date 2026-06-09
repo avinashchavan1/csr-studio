@@ -1,0 +1,29 @@
+# Netlify — builds the Vite/React frontend in frontend/.
+# Connect this repo in Netlify; set VITE_API_URL in Site settings → Environment.
+
+[build]
+  base = "frontend"
+  command = "npm run build"
+  publish = "frontend/dist"
+
+# SPA fallback — all routes serve index.html.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# No-cache the app shell so deploys land instantly (and PWA shells never go stale).
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"

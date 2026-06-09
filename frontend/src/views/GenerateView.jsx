@@ -1,0 +1,371 @@
+/* CSR generation form + output (ported from design views-generate.jsx) */
+import React, { useState, useEffect, useRef } from "react";
+import { Icon, Field, TextInput, Select, Segmented, Button, CodeBlock, Pill } from "../components/ui.jsx";
+import { COUNTRIES, KEY_PRESETS, HASHES, PRESETS, classifySAN, isValidDomain, copyText, download, safeName } from "../lib/data.js";
+import * as engine from "../lib/engine.js";
+import * as api from "../lib/api.js";
+
+function strengthFor(keyType, size) {
+  if (keyType === "ecdsa") {
+    return size === "P-384"
+      ? { lvl: 4, label: "Very strong", note: "ECDSA P-384 · ~192-bit security" }
+      : { lvl: 4, label: "Strong · modern", note: "ECDSA P-256 · ~128-bit, fast handshakes" };
+  }
+  const b = parseInt(size, 10);
+  if (b >= 4096) return { lvl: 4, label: "Very strong", note: "RSA 4096 · maximum compatibility margin" };
+  if (b >= 3072) return { lvl: 4, label: "Very strong", note: "RSA 3072 · ~128-bit security" };
+  return { lvl: 3, label: "Strong", note: "RSA 2048 · the industry standard" };
+}
+
+export function emptyForm() {
+  return {
+    cn: "", sans: [], O: "", OU: "", L: "", ST: "", C: "US", email: "",
+    keyType: "rsa", size: "2048", hash: "SHA-256", keyFormat: "pkcs8"
+  };
+}
+
+const GEN_STEPS = [
+  { key: "submit", name: "Request submitted", meta: "sent to the server" },
+  { key: "queued", name: "Queued", meta: "accepted, awaiting a worker" },
+  { key: "keygen", name: "Generating key pair", meta: "creating the private key" },
+  { key: "sign", name: "Signing request", meta: "building & signing the CSR" },
+  { key: "ready", name: "CSR ready", meta: "delivered to your browser" }
+];
+function stageOf(p) {
+  if (!p) return 0;
+  if (p.phase === "submitting") return 0;
+  if (p.phase === "queued") return 1;
+  if (p.phase === "processing") return /sign/i.test((p.status || "") + " " + (p.label || "")) ? 3 : 2;
+  if (p.phase === "done") return 5;
+  return 0;
+}
+
+function ProgressStepper({ progress, elapsed, form }) {
+  const maxRef = useRef(0);
+  const p = progress || {};
+  if (p.phase === "retrying") { /* hold position */ }
+  else maxRef.current = Math.max(maxRef.current, stageOf(p));
+  const stage = maxRef.current;
+  const isAsync = stage >= 1 || p.phase === "queued" || p.phase === "processing";
+  const retrying = p.phase === "retrying";
+  const demo = api.mode() === "demo";
+
+  if (!isAsync) {
+    return (
+      <div className="result-empty">
+        <span className="big"><span className="spinner" style={{ width: 26, height: 26, borderColor: "var(--accent-ring)", borderTopColor: "var(--accent)" }} /></span>
+        <h4>{demo ? "Generating " + (form.keyType === "ecdsa" ? "EC" : "RSA " + form.size + "-bit") + " key pair…" : "Generating on " + api.host() + "…"}</h4>
+        <p>{retrying ? "Connection issue — retrying…" : (form.keyType === "rsa" && parseInt(form.size) >= 4096 ? "4096-bit keys take a few seconds." : "Working on it…")} · {elapsed.toFixed(1)}s</p>
+        {retrying && <div className="retry-note" style={{ marginTop: 14 }}><Icon name="refresh" />Retrying{p.attempt ? " (attempt " + p.attempt + ")" : ""}…</div>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="progress-card fade-in">
+      <div className="progress-head">
+        <span className="ph-ico"><Icon name="server" /></span>
+        <div>
+          <h4>{demo ? "Generating your CSR" : "Generating on " + api.host()}</h4>
+          <div className="ph-sub">{p.jobId ? "job " + p.jobId : "async job"}{typeof p.progress === "number" ? " · " + Math.round(p.progress * 100) + "%" : ""}</div>
+        </div>
+        <span className="ph-time">{elapsed.toFixed(1)}s</span>
+      </div>
+      <div className="steps-v">
+        {GEN_STEPS.map((s, i) => {
+          const done = stage > i;
+          const active = stage === i;
+          return (
+            <div key={s.key} className={"step-v" + (done ? " done" : active ? " active" : "")}>
+              <div className="sv-rail">
+                <div className="sv-dot">
+                  {done ? <Icon name="check" /> : active ? <span className="sv-spin" /> : null}
+                </div>
+                <div className="sv-line" />
+              </div>
+              <div className="sv-body">
+                <div className="sv-name">{s.name}</div>
+                <div className="sv-meta">{active && p.label ? p.label : s.meta}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {retrying && <div className="retry-note"><Icon name="refresh" />Connection hiccup — retrying{p.attempt ? " (attempt " + p.attempt + ")" : ""}…</div>}
+    </div>
+  );
+}
+
+export function GenerateView({ seed, onGenerated, push }) {
+  const [f, setF] = useState(() => seed || emptyForm());
+  const [sanInput, setSanInput] = useState("");
+  const [errors, setErrors] = useState({});
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(null);
+  const [elapsed, setElapsed] = useState(0);
+  const [result, setResult] = useState(null);
+  const resultRef = useRef(null);
+  const timerRef = useRef(null);
+
+  useEffect(() => { if (seed) { setF(seed); setResult(null); } }, [seed]);
+  useEffect(() => () => clearInterval(timerRef.current), []);
+
+  const set = (k, v) => setF(p => ({ ...p, [k]: v }));
+  const setKeyType = (kt) => setF(p => ({ ...p, keyType: kt, size: kt === "ecdsa" ? "P-256" : "2048" }));
+
+  const addSan = () => {
+    const raw = sanInput.trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+    if (!raw) return;
+    const type = classifySAN(raw);
+    if (f.sans.some(s => s.value.toLowerCase() === raw.toLowerCase())) { setSanInput(""); return; }
+    set("sans", [...f.sans, { type, value: raw }]);
+    setSanInput("");
+  };
+  const removeSan = (i) => set("sans", f.sans.filter((_, idx) => idx !== i));
+
+  const applyPreset = (p) => {
+    const out = p.apply(f.cn);
+    setF(prev => ({
+      ...prev,
+      ...(out.cn !== undefined ? { cn: out.cn } : {}),
+      sans: out.sans && out.sans.length
+        ? [...prev.sans.filter(s => !out.sans.some(n => n.value === s.value)), ...out.sans]
+        : prev.sans
+    }));
+    push("Preset applied — " + p.title);
+  };
+
+  const cnChip = f.cn ? { type: classifySAN(f.cn), value: f.cn, locked: true } : null;
+  const allSans = (cnChip ? [cnChip] : []).concat(f.sans);
+
+  const subject = () => ({
+    CN: f.cn.trim(), O: f.O.trim(), OU: f.OU.trim(), L: f.L.trim(),
+    ST: f.ST.trim(), C: f.C, email: f.email.trim()
+  });
+  const opts = () => ({
+    subject: subject(),
+    sans: allSans.map(s => ({ type: s.type, value: s.value })),
+    keyType: f.keyType, size: f.size, hash: f.hash, keyFormat: f.keyFormat
+  });
+
+  const cmd = engine.opensslCommand(opts());
+  const strength = strengthFor(f.keyType, f.size);
+
+  function validate() {
+    const e = {};
+    if (!f.cn.trim()) e.cn = "Common Name is required (the primary domain).";
+    else if (!isValidDomain(f.cn.trim())) e.cn = "That doesn't look like a valid hostname.";
+    if (f.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email.trim())) e.email = "Enter a valid email address.";
+    if (f.C && f.C.length !== 2) e.C = "Country must be a 2-letter code.";
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  }
+
+  async function generate() {
+    if (!validate()) { push("Please fix the highlighted fields.", "err"); return; }
+    setBusy(true); setResult(null); setProgress({ phase: "submitting" }); setElapsed(0);
+    const t0 = Date.now();
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => setElapsed((Date.now() - t0) / 1000), 100);
+    try {
+      const res = await api.generate(opts(), { onProgress: (p) => setProgress(p) });
+      setResult(res);
+      onGenerated && onGenerated(res);
+      push(api.mode() === "demo" ? "CSR generated (demo)" : "CSR generated on " + api.host());
+    } catch (err) {
+      console.error(err);
+      if (err.fields) {
+        const map = { commonName: "cn", email: "email", country: "C" };
+        const e = {};
+        Object.keys(err.fields).forEach(k => { e[map[k] || k] = err.fields[k]; });
+        setErrors(e);
+      }
+      push(err.message || "Generation failed", "err");
+    } finally {
+      clearInterval(timerRef.current);
+      setBusy(false); setProgress(null);
+    }
+  }
+
+  function reset() { setF(emptyForm()); setResult(null); setErrors({}); }
+
+  const doCopy = (text, what) => copyText(text).then(() => push(what + " copied")).catch(() => push("Copy failed", "err"));
+  const fileBase = safeName(f.cn);
+
+  return (
+    <div className="grid-2 fade-in">
+      {/* form column */}
+      <div className="stack">
+        <div className="card">
+          <div className="card-head">
+            <span className="ico"><Icon name="spark" /></span>
+            <div><h3>Quick start</h3><div className="desc">Pre-fill a common certificate shape, then tweak below.</div></div>
+          </div>
+          <div className="card-body">
+            <div className="presets">
+              {PRESETS.map(p => (
+                <button key={p.id} className="preset" onClick={() => applyPreset(p)}>
+                  <span className="pt"><Icon name={p.icon} />{p.title}</span>
+                  <span className="pd">{p.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-head">
+            <span className="ico"><Icon name="globe" /></span>
+            <div><h3>Domain &amp; subject</h3><div className="desc">Identity details embedded in the certificate.</div></div>
+            <span className="card-num">01</span>
+          </div>
+          <div className="card-body fgroup">
+            <Field label={<span>Common Name (CN) <span className="req">*</span></span>} hint="The fully-qualified domain this certificate secures." error={errors.cn}>
+              <TextInput mono value={f.cn} onChange={v => set("cn", v)} error={errors.cn} placeholder="example.com" onBlur={validate} />
+            </Field>
+
+            <Field label="Subject Alternative Names (SAN)" hint="Add every extra hostname or IP. The CN is included automatically.">
+              <div className="input-row">
+                <input className="input mono" value={sanInput} placeholder="www.example.com, api.example.com, 203.0.113.10"
+                  onChange={e => setSanInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addSan(); } }} />
+                <Button variant="soft" icon="plus" onClick={addSan}>Add</Button>
+              </div>
+              <div className="chips" style={{ marginTop: 4 }}>
+                {allSans.length === 0 && <span className="chip empty">No alternative names yet</span>}
+                {allSans.map((s, i) => (
+                  <span key={s.value + i} className="chip">
+                    <span className={"tag " + (s.locked ? "cn" : s.type === "IP" ? "ip" : "")}>{s.locked ? "CN" : s.type}</span>
+                    {s.value}
+                    {!s.locked && <button onClick={() => removeSan(i - (cnChip ? 1 : 0))} aria-label="remove"><Icon name="x" /></button>}
+                  </span>
+                ))}
+              </div>
+            </Field>
+
+            <div className="frow">
+              <Field label="Organization (O)" optional><TextInput value={f.O} onChange={v => set("O", v)} placeholder="Acme Inc." /></Field>
+              <Field label="Organizational Unit (OU)" optional><TextInput value={f.OU} onChange={v => set("OU", v)} placeholder="IT / DevOps" /></Field>
+            </div>
+            <div className="frow-3">
+              <Field label="City / Locality (L)" optional><TextInput value={f.L} onChange={v => set("L", v)} placeholder="San Francisco" /></Field>
+              <Field label="State / Province (ST)" optional><TextInput value={f.ST} onChange={v => set("ST", v)} placeholder="California" /></Field>
+              <Field label="Country (C)" error={errors.C}>
+                <Select value={f.C} onChange={v => set("C", v)} options={COUNTRIES.map(c => ({ value: c.code, label: `${c.code} — ${c.name}` }))} />
+              </Field>
+            </div>
+            <Field label="Email" optional error={errors.email}>
+              <TextInput value={f.email} onChange={v => set("email", v)} placeholder="admin@example.com" />
+            </Field>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-head">
+            <span className="ico"><Icon name="key" /></span>
+            <div><h3>Key &amp; algorithm</h3><div className="desc">How the private key is generated and the request is signed.</div></div>
+            <span className="card-num">02</span>
+          </div>
+          <div className="card-body fgroup">
+            <Field label="Key algorithm">
+              <Segmented value={f.keyType} onChange={setKeyType}
+                options={[{ value: "rsa", label: "RSA" }, { value: "ecdsa", label: "ECDSA (Elliptic Curve)" }]} />
+            </Field>
+            <div className="frow">
+              <Field label={f.keyType === "ecdsa" ? "Curve" : "Key size"}>
+                <Select value={f.size} onChange={v => set("size", v)} options={KEY_PRESETS[f.keyType]} />
+              </Field>
+              <Field label="Signature hash"><Select value={f.hash} onChange={v => set("hash", v)} options={HASHES} /></Field>
+            </div>
+            <Field label="Private key format"
+              hint={f.keyType === "ecdsa"
+                ? "Elliptic-curve keys are always emitted as PKCS#8 (“BEGIN PRIVATE KEY”)."
+                : "PKCS#8 is the modern default. PKCS#1 is the traditional “BEGIN RSA PRIVATE KEY” format some older servers expect."}>
+              {f.keyType === "ecdsa"
+                ? <div className="seg" style={{ opacity: .6, pointerEvents: "none" }}><button className="on">PKCS#8</button></div>
+                : <Segmented value={f.keyFormat} onChange={v => set("keyFormat", v)}
+                    options={[{ value: "pkcs8", label: "PKCS#8" }, { value: "pkcs1", label: "PKCS#1 (traditional)" }]} />}
+            </Field>
+            <div className="strength">
+              <div className={"strength s" + strength.lvl}>
+                <div className="strength-bar"><i></i><i></i><i></i><i></i></div>
+              </div>
+              <div className="strength-row">
+                <span className="lbl">{strength.note}</span>
+                <span className="val" style={{ color: "var(--accent)" }}>{strength.label}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <Button variant="primary" size="lg" icon={busy ? null : "cert"} loading={busy} onClick={generate} style={{ flex: 1 }}>
+            {busy ? "Generating key pair…" : "Generate CSR & private key"}
+          </Button>
+          <Button variant="ghost" size="lg" icon="refresh" onClick={reset} title="Reset form" />
+        </div>
+      </div>
+
+      {/* output column */}
+      <div className="stack" ref={resultRef} style={{ position: "sticky", top: 92 }}>
+        <CodeBlock title="openssl — equivalent command" cmd value={cmd} onCopy={() => doCopy(cmd, "Command")} dots={true} />
+
+        {!result && !busy && (
+          <div className="result-empty">
+            <span className="big"><Icon name="cert" /></span>
+            <h4>Your CSR will appear here</h4>
+            <p>Fill in at least a Common Name, then generate. {api.mode() === "demo" ? "Running the in-browser demo until your backend is connected." : "Your backend signs the request and returns it here."}</p>
+          </div>
+        )}
+
+        {busy && <ProgressStepper progress={progress} elapsed={elapsed} form={f} />}
+
+        {result && (
+          <div className="stack fade-in">
+            <div className="warn-strip">
+              <Icon name="lock" />
+              <span>{api.mode() === "demo"
+                ? <><b>Keep the private key secret.</b> In demo mode it is generated in your browser. Once your backend is connected it will be created on the server and delivered over the API. Either way — store it safely; you can't recover it later.</>
+                : <><b>Keep the private key secret.</b> It was generated on <b>{api.host()}</b> and delivered over the API. Store it somewhere safe and keep it out of transit/access logs — you can't recover it later.</>}</span>
+            </div>
+
+            <CodeBlock title={fileBase + ".csr — certificate signing request"} value={result.csrPem}
+              onCopy={() => doCopy(result.csrPem, "CSR")}
+              onDownload={() => { download(fileBase + ".csr", result.csrPem); push("CSR downloaded"); }} />
+
+            <CodeBlock title={fileBase + ".key — private key (" + (result.keyFormat || "PKCS#8") + ")"} value={result.keyPem}
+              onCopy={() => doCopy(result.keyPem, "Private key")}
+              onDownload={() => { download(fileBase + ".key", result.keyPem); push("Private key downloaded"); }} />
+
+            <div className="card">
+              <div className="card-head"><span className="ico"><Icon name="info" /></span><h3>Summary</h3>
+                <span style={{ marginLeft: "auto" }}><Pill kind="ok" icon="check">Valid PKCS#10</Pill></span>
+              </div>
+              <div className="card-body">
+                <dl className="meta">
+                  <dt>Common Name</dt><dd>{result.subject.CN}</dd>
+                  <dt>Alt names</dt><dd>{result.sans.length ? result.sans.map(s => s.value).join(", ") : <span className="empty">none</span>}</dd>
+                  <dt>Key</dt><dd>{result.keyLabel}</dd>
+                  <dt>Signature</dt><dd>{result.sigAlg}</dd>
+                  <dt>Organization</dt><dd>{result.subject.O || <span className="empty">—</span>}</dd>
+                  <dt>Country</dt><dd>{result.subject.C || <span className="empty">—</span>}</dd>
+                </dl>
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="card-head"><span className="ico"><Icon name="arrow" /></span><h3>What's next</h3></div>
+              <div className="card-body">
+                <ol className="steps">
+                  <li><b>Submit the CSR</b> — paste the <code>.csr</code> into your certificate authority (Let's Encrypt, DigiCert, Sectigo, your internal CA…) to get a signed certificate.</li>
+                  <li><b>Keep the <code>.key</code> private</b> — it stays on your server and is never uploaded to the CA. Store it somewhere safe and access-controlled.</li>
+                  <li><b>Install both</b> — once issued, deploy the certificate together with this private key on your web server or load balancer.</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
