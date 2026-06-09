@@ -1,0 +1,113 @@
+package com.example.csrgen.contract;
+
+import com.example.csrgen.contract.dto.ContractKey;
+import com.example.csrgen.contract.dto.ContractSan;
+import com.example.csrgen.contract.dto.ContractSubject;
+import com.example.csrgen.contract.dto.DecodeResponse;
+import com.example.csrgen.contract.dto.GenerateRequest;
+import com.example.csrgen.contract.dto.GenerateResponse;
+import com.example.csrgen.contract.dto.MatchResponse;
+import com.example.csrgen.crypto.ConversionService;
+import com.example.csrgen.crypto.CsrParser;
+import com.example.csrgen.crypto.CsrService;
+import com.example.csrgen.crypto.KeyPairService;
+import com.example.csrgen.crypto.MatchService;
+import com.example.csrgen.crypto.ValidationService;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+
+import java.security.Security;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+class ContractServiceTest {
+
+    @BeforeAll
+    static void bc() {
+        if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
+            Security.addProvider(new BouncyCastleProvider());
+        }
+    }
+
+    private final CsrParser parser = new CsrParser();
+    private final CsrService csrService =
+            new CsrService(new KeyPairService(), new ValidationService());
+    private final ContractService contract = new ContractService(
+            csrService, parser, new MatchService(parser, new ConversionService()));
+
+    private ContractSubject subject(String cn) {
+        return new ContractSubject(cn, "Example Inc.", "IT", "San Francisco", "California", "US", "a@b.com");
+    }
+
+    @Test
+    void generateRsaPkcs8() {
+        GenerateRequest req = new GenerateRequest(subject("shop.example.com"),
+                List.of(new ContractSan("DNS", "shop.example.com"), new ContractSan("IP", "203.0.113.10")),
+                new ContractKey("RSA", 2048, null, "PKCS#8"), "SHA-256");
+        GenerateResponse r = contract.generate(req);
+
+        assertThat(r.csr()).contains("BEGIN CERTIFICATE REQUEST");
+        assertThat(r.privateKey()).contains("BEGIN PRIVATE KEY");
+        assertThat(r.details().keyLabel()).isEqualTo("RSA 2048");
+        assertThat(r.details().keyDetail()).isEqualTo("2048-bit");
+        assertThat(r.details().keyFormat()).isEqualTo("PKCS#8");
+        assertThat(r.details().signatureAlgorithm()).isEqualTo("SHA-256");
+    }
+
+    @Test
+    void generateRsaPkcs1() {
+        GenerateRequest req = new GenerateRequest(subject("a.com"), List.of(),
+                new ContractKey("RSA", 3072, null, "PKCS#1"), "SHA-384");
+        GenerateResponse r = contract.generate(req);
+        assertThat(r.privateKey()).contains("BEGIN RSA PRIVATE KEY");
+        assertThat(r.details().keyFormat()).isEqualTo("PKCS#1");
+        assertThat(r.details().keyLabel()).isEqualTo("RSA 3072");
+    }
+
+    @Test
+    void generateEcdsa() {
+        GenerateRequest req = new GenerateRequest(subject("ec.com"), List.of(),
+                new ContractKey("ECDSA", null, "P-256", "PKCS#8"), "SHA-256");
+        GenerateResponse r = contract.generate(req);
+        assertThat(r.details().keyLabel()).isEqualTo("ECDSA P-256");
+        assertThat(r.details().keyFormat()).isEqualTo("PKCS#8");
+        assertThat(r.privateKey()).contains("BEGIN PRIVATE KEY");
+    }
+
+    @Test
+    void decodeRoundTrip() {
+        GenerateRequest req = new GenerateRequest(subject("dec.example.com"),
+                List.of(new ContractSan("DNS", "dec.example.com")),
+                new ContractKey("RSA", 2048, null, "PKCS#8"), "SHA-256");
+        GenerateResponse gen = contract.generate(req);
+
+        DecodeResponse d = contract.decode(gen.csr());
+        assertThat(d.subject().commonName()).isEqualTo("dec.example.com");
+        assertThat(d.subject().country()).isEqualTo("US");
+        assertThat(d.key().kind()).isEqualTo("RSA");
+        assertThat(d.key().bits()).isEqualTo(2048);
+        assertThat(d.signature().valid()).isTrue();
+        assertThat(d.subjectAltNames()).extracting(ContractSan::value).contains("dec.example.com");
+    }
+
+    @Test
+    void decodeEcReportsEcdsaKind() {
+        GenerateResponse gen = contract.generate(new GenerateRequest(subject("ec.com"), List.of(),
+                new ContractKey("ECDSA", null, "P-384", "PKCS#8"), "SHA-384"));
+        DecodeResponse d = contract.decode(gen.csr());
+        assertThat(d.key().kind()).isEqualTo("ECDSA");
+        assertThat(d.key().detail()).isEqualTo("P-384");
+    }
+
+    @Test
+    void matchTrueForOwnKey() {
+        GenerateResponse gen = contract.generate(new GenerateRequest(subject("m.com"), List.of(),
+                new ContractKey("RSA", 2048, null, "PKCS#8"), "SHA-256"));
+        MatchResponse m = contract.match(gen.csr(), gen.privateKey());
+        assertThat(m.supported()).isTrue();
+        assertThat(m.match()).isTrue();
+        assertThat(m.bits()).isEqualTo(2048);
+    }
+}
