@@ -94,6 +94,13 @@ class HistoryControllerTest {
     }
 
     @Test
+    void junkCsrPemRejected() throws Exception {
+        mvc.perform(post("/csr/history").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"commonName\":\"x\",\"csrPem\":\"NOT A REAL CSR\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void missingCsrPemRejected() throws Exception {
         String bad = "{ \"commonName\": \"x.com\" }";
         mvc.perform(post("/csr/history").contentType(MediaType.APPLICATION_JSON).content(bad))

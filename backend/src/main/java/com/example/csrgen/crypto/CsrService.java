@@ -9,10 +9,13 @@ import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.X500NameBuilder;
 import org.bouncycastle.asn1.x500.style.BCStyle;
+import org.bouncycastle.asn1.x509.ExtendedKeyUsage;
 import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.ExtensionsGenerator;
 import org.bouncycastle.asn1.x509.GeneralName;
 import org.bouncycastle.asn1.x509.GeneralNames;
+import org.bouncycastle.asn1.x509.KeyPurposeId;
+import org.bouncycastle.asn1.x509.KeyUsage;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.OperatorCreationException;
@@ -59,7 +62,7 @@ public class CsrService {
             JcaPKCS10CertificationRequestBuilder builder =
                     new JcaPKCS10CertificationRequestBuilder(subject, keyPair.getPublic());
 
-            addSanExtension(builder, req.subjectAltNames());
+            addExtensions(builder, req);
 
             ContentSigner signer = new JcaContentSignerBuilder(sigAlgo)
                     .setProvider(BouncyCastleProvider.PROVIDER_NAME)
@@ -127,22 +130,78 @@ public class CsrService {
         }
     }
 
-    private void addSanExtension(JcaPKCS10CertificationRequestBuilder builder,
-                                 List<SanEntryDto> sans) throws IOException {
-        if (sans == null || sans.isEmpty()) {
-            return;
-        }
-        List<GeneralName> names = new ArrayList<>();
-        for (SanEntryDto san : sans) {
-            names.add(new GeneralName(san.type().tag(), san.value().trim()));
-        }
-        GeneralNames generalNames = new GeneralNames(names.toArray(new GeneralName[0]));
-
+    /** Builds the SAN + optional keyUsage / extendedKeyUsage into one extensionRequest. */
+    private void addExtensions(JcaPKCS10CertificationRequestBuilder builder, CsrRequest req)
+            throws IOException {
         ExtensionsGenerator extGen = new ExtensionsGenerator();
-        extGen.addExtension(Extension.subjectAlternativeName, false, generalNames);
+        boolean any = false;
 
-        builder.addAttribute(
-                PKCSObjectIdentifiers.pkcs_9_at_extensionRequest, extGen.generate());
+        List<SanEntryDto> sans = req.subjectAltNames();
+        if (sans != null && !sans.isEmpty()) {
+            List<GeneralName> names = new ArrayList<>();
+            for (SanEntryDto san : sans) {
+                names.add(new GeneralName(san.type().tag(), san.value().trim()));
+            }
+            extGen.addExtension(Extension.subjectAlternativeName, false,
+                    new GeneralNames(names.toArray(new GeneralName[0])));
+            any = true;
+        }
+
+        int ku = keyUsageBits(req.keyUsages());
+        if (ku != 0) {
+            extGen.addExtension(Extension.keyUsage, true, new KeyUsage(ku));
+            any = true;
+        }
+
+        List<KeyPurposeId> ekus = extendedKeyUsages(req.extendedKeyUsages());
+        if (!ekus.isEmpty()) {
+            extGen.addExtension(Extension.extendedKeyUsage, false,
+                    new ExtendedKeyUsage(ekus.toArray(new KeyPurposeId[0])));
+            any = true;
+        }
+
+        if (any) {
+            builder.addAttribute(PKCSObjectIdentifiers.pkcs_9_at_extensionRequest, extGen.generate());
+        }
+    }
+
+    private int keyUsageBits(List<String> usages) {
+        if (usages == null) {
+            return 0;
+        }
+        int bits = 0;
+        for (String u : usages) {
+            bits |= switch (u.trim()) {
+                case "digitalSignature" -> KeyUsage.digitalSignature;
+                case "nonRepudiation", "contentCommitment" -> KeyUsage.nonRepudiation;
+                case "keyEncipherment" -> KeyUsage.keyEncipherment;
+                case "dataEncipherment" -> KeyUsage.dataEncipherment;
+                case "keyAgreement" -> KeyUsage.keyAgreement;
+                case "keyCertSign" -> KeyUsage.keyCertSign;
+                case "cRLSign" -> KeyUsage.cRLSign;
+                default -> throw new CryptoException("Unknown key usage: " + u);
+            };
+        }
+        return bits;
+    }
+
+    private List<KeyPurposeId> extendedKeyUsages(List<String> ekus) {
+        if (ekus == null) {
+            return List.of();
+        }
+        List<KeyPurposeId> out = new ArrayList<>();
+        for (String e : ekus) {
+            out.add(switch (e.trim()) {
+                case "serverAuth" -> KeyPurposeId.id_kp_serverAuth;
+                case "clientAuth" -> KeyPurposeId.id_kp_clientAuth;
+                case "codeSigning" -> KeyPurposeId.id_kp_codeSigning;
+                case "emailProtection" -> KeyPurposeId.id_kp_emailProtection;
+                case "timeStamping" -> KeyPurposeId.id_kp_timeStamping;
+                case "ocspSigning" -> KeyPurposeId.id_kp_OCSPSigning;
+                default -> throw new CryptoException("Unknown extended key usage: " + e);
+            });
+        }
+        return out;
     }
 
     /**

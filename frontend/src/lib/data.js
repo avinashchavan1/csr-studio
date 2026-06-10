@@ -24,7 +24,8 @@ export const KEY_PRESETS = {
   ],
   ecdsa: [
     { value: "P-256", label: "P-256", note: "prime256v1 · ~128-bit security" },
-    { value: "P-384", label: "P-384", note: "secp384r1 · ~192-bit security" }
+    { value: "P-384", label: "P-384", note: "secp384r1 · ~192-bit security" },
+    { value: "P-521", label: "P-521", note: "secp521r1 · ~256-bit security" }
   ]
 };
 

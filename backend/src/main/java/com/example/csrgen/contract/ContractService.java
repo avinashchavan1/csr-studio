@@ -53,13 +53,16 @@ public class ContractService {
         boolean rsaPkcs1 = !ecdsa && "PKCS#1".equalsIgnoreCase(nz(key.format()));
         String hash = StringUtils.hasText(req.signatureHash()) ? req.signatureHash() : "SHA-256";
 
+        GenerateRequest.Extensions ext = req.extensions();
         CsrRequest internal = new CsrRequest(
                 ecdsa ? KeyAlgorithm.EC : KeyAlgorithm.RSA,
                 ecdsa ? null : key.size(),
                 ecdsa ? key.curve() : null,
                 toSubjectDto(req.subject()),
-                buildSans(req.subject().commonName(), req.subjectAltNames()),
-                jcaSignatureAlgorithm(hash, ecdsa));
+                buildSans(req.subject().commonName(), req.subject().email(), req.subjectAltNames()),
+                jcaSignatureAlgorithm(hash, ecdsa),
+                ext == null ? null : ext.keyUsage(),
+                ext == null ? null : ext.extendedKeyUsage());
 
         GeneratedCsr out = csrService.generateDetailed(internal, rsaPkcs1);
 
@@ -97,7 +100,7 @@ public class ContractService {
                 parsed.keySize());
 
         DecodeResponse.Signature sig = new DecodeResponse.Signature(
-                parsed.signatureAlgorithm(), parsed.signatureValid());
+                prettySig(parsed.signatureAlgorithm()), parsed.signatureValid());
 
         return new DecodeResponse(subject, sans, key, sig);
     }
@@ -141,7 +144,9 @@ public class ContractService {
      * Builds the SAN list: validates each entry, dedupes, and ensures the CN is
      * present as a SAN (CA/Browser Forum + RFC 6125 require it — browsers ignore CN).
      */
-    private List<SanEntryDto> buildSans(String commonName, List<ContractSan> sans) {
+    private static final int MAX_SANS = 100;
+
+    private List<SanEntryDto> buildSans(String commonName, String email, List<ContractSan> sans) {
         LinkedHashMap<String, SanEntryDto> out = new LinkedHashMap<>();
 
         String cn = nz(commonName).trim();
@@ -161,6 +166,14 @@ public class ContractService {
                 validateSan(type, v);
                 addSan(out, type, v);
             }
+        }
+        // Subject email belongs in SAN as rfc822Name (deprecated in the DN for TLS).
+        String em = nz(email).trim();
+        if (!em.isEmpty()) {
+            addSan(out, SanType.EMAIL, em);
+        }
+        if (out.size() > MAX_SANS) {
+            throw new CryptoException("Too many Subject Alternative Names (max " + MAX_SANS + ").");
         }
         return new ArrayList<>(out.values());
     }
@@ -235,6 +248,11 @@ public class ContractService {
             return "Ed25519";
         }
         return keySize + "-bit";
+    }
+
+    /** "SHA256WITHRSA" → "SHA256withRSA" (BouncyCastle returns all-caps). */
+    private String prettySig(String algo) {
+        return algo == null ? null : algo.replace("WITH", "with");
     }
 
     private static String nz(String s) {

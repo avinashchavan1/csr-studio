@@ -122,7 +122,10 @@ function generateRequest(o) {
     key: o.keyType === "ecdsa"
       ? { algorithm: "ECDSA", curve: o.size, format: "PKCS#8" }
       : { algorithm: "RSA", size: parseInt(o.size, 10), format: o.keyFormat === "pkcs1" ? "PKCS#1" : "PKCS#8" },
-    signatureHash: o.hash || "SHA-256"
+    signatureHash: o.hash || "SHA-256",
+    ...(((o.keyUsage && o.keyUsage.length) || (o.eku && o.eku.length))
+      ? { extensions: { keyUsage: o.keyUsage || [], extendedKeyUsage: o.eku || [] } }
+      : {})
   };
 }
 function normGenerate(r, o) {
