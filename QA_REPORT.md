@@ -63,10 +63,10 @@ Core crypto is **correct and interoperable** (every generated CSR verifies in op
 
 > Deploy note: capped HikariCP pool to 5 (Supabase free = 15 conns); a deploy under load can still exhaust the pool during instance overlap → if a deploy shows `update_failed` with `Unable to determine Dialect`, suspend+resume the service (frees connections) then redeploy.
 
-### QA-CP2 — Validation & error handling
-3. **M-2/M-3** Add handlers: `HttpMessageNotReadableException` → 400; map BouncyCastle/IllegalArgument (bad IP, bad SAN) to `CryptoException`/400. Generic 500 must return a **static** message (no `ex.getMessage()`).
-4. **M-4** Reject unknown key `algorithm` (only RSA/ECDSA/EC) with 400 instead of defaulting to RSA.
-5. **M-5** Validate on the API: country = 2-letter ISO-3166, email format, DNS-name SAN syntax; **auto-add CN to SAN** (deduped); reject IP SANs that aren't valid IPs (→ also fixes M-2 root).
+### QA-CP2 — Validation & error handling ✅ DONE (deployed + prod-verified 2026-06-10)
+3. **M-2/M-3 ✅** `HttpMessageNotReadableException` → 400 ("Malformed or unreadable request body."); invalid IP/SAN → 400 (`CryptoException`); generic 500 now returns a static message and logs the cause server-side (no leakage).
+4. **M-4 ✅** Unknown key algorithm → 400 ("Unsupported key algorithm…"), no silent RSA fallback.
+5. **M-5 ✅** Country (`^[A-Za-z]{2}$`) + email (`@Email`) bean-validated → 400 with `error.fields`; DNS/IP SAN syntax validated; **CN auto-added to SAN (deduped)** so every CSR has a usable SAN. All verified on prod.
 
 ### QA-CP3 — Hardening
 6. **M-1** Add auth (the deferred JWT) **or** scope history per anonymous client id + remove/guard global `DELETE`. At minimum rate-limit + cap rows.

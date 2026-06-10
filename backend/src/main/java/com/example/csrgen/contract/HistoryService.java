@@ -7,6 +7,7 @@ import com.example.csrgen.persistence.CsrHistory;
 import com.example.csrgen.persistence.CsrHistoryRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,9 @@ import java.util.UUID;
  */
 @Service
 public class HistoryService {
+
+    /** Hard cap on stored rows to protect the (free, 500 MB) database from unbounded growth. */
+    private static final int MAX_ROWS = 500;
 
     private final CsrHistoryRepository repo;
     private final ObjectMapper mapper;
@@ -35,7 +39,16 @@ public class HistoryService {
                 UUID.randomUUID().toString(),
                 req.commonName(), req.organization(), req.keyLabel(), req.keyDetail(),
                 req.keyFormat(), req.signatureAlgorithm(), sansJson, req.csrPem(), Instant.now());
-        return toDto(repo.save(entity));
+        HistoryRecord saved = toDto(repo.save(entity));
+        trimToCap();
+        return saved;
+    }
+
+    private void trimToCap() {
+        long count = repo.count();
+        if (count > MAX_ROWS) {
+            repo.deleteAll(repo.findByOrderByCreatedAtAsc(PageRequest.of(0, (int) (count - MAX_ROWS))));
+        }
     }
 
     @Transactional(readOnly = true)

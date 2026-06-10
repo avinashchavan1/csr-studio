@@ -82,14 +82,14 @@ function withTimeout(url, opts) {
   return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(id));
 }
 
-async function request(path, { method = "POST", body, onProgress, idemKey, retries } = {}) {
+async function request(path, { method = "POST", body, onProgress, idemKey, retries, headers: extraHeaders } = {}) {
   const url = /^https?:/i.test(path) ? path : config.baseUrl + path;
   const max = retries != null ? retries : config.retries;
   let attempt = 0;
   while (true) {
     let res;
     try {
-      const extra = idemKey ? { "Idempotency-Key": idemKey } : {};
+      const extra = { ...(idemKey ? { "Idempotency-Key": idemKey } : {}), ...(extraHeaders || {}) };
       res = await withTimeout(url, { method, headers: headers(extra), credentials: creds(), body: body != null ? JSON.stringify(body) : undefined });
     } catch (e) {
       const timeout = e.name === "AbortError";
@@ -267,7 +267,7 @@ export async function historyDelete(id) {
 }
 export async function historyClear() {
   if (mode() === "demo") { saveLocal([]); return; }
-  await request("/csr/history", { method: "DELETE", retries: 0 });
+  await request("/csr/history", { method: "DELETE", retries: 0, headers: { "X-Confirm-Clear": "yes" } });
 }
 
 /* ---- contract samples for the docs view ---- */
