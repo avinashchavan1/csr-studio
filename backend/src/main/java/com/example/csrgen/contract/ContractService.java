@@ -49,28 +49,40 @@ public class ContractService {
     public GenerateResponse generate(GenerateRequest req) {
         ContractKey key = req.key();
         validateAlgorithm(key.algorithm());
-        boolean ecdsa = isEcdsa(key.algorithm());
-        boolean rsaPkcs1 = !ecdsa && "PKCS#1".equalsIgnoreCase(nz(key.format()));
+        String type = algoType(key.algorithm());   // RSA | ECDSA | ED25519
+        boolean ed = type.equals("ED25519");
+        boolean ecdsa = type.equals("ECDSA");
+        boolean rsa = type.equals("RSA");
+        boolean rsaPkcs1 = rsa && "PKCS#1".equalsIgnoreCase(nz(key.format()));
         String hash = StringUtils.hasText(req.signatureHash()) ? req.signatureHash() : "SHA-256";
+
+        List<SanEntryDto> sans = buildSans(req.subject().commonName(), req.subject().email(), req.subjectAltNames());
+        if (sans.isEmpty()) {
+            throw new CryptoException("Provide a Common Name or at least one Subject Alternative Name.");
+        }
 
         GenerateRequest.Extensions ext = req.extensions();
         CsrRequest internal = new CsrRequest(
-                ecdsa ? KeyAlgorithm.EC : KeyAlgorithm.RSA,
-                ecdsa ? null : key.size(),
+                ed ? KeyAlgorithm.ED25519 : ecdsa ? KeyAlgorithm.EC : KeyAlgorithm.RSA,
+                rsa ? key.size() : null,
                 ecdsa ? key.curve() : null,
                 toSubjectDto(req.subject()),
-                buildSans(req.subject().commonName(), req.subject().email(), req.subjectAltNames()),
-                jcaSignatureAlgorithm(hash, ecdsa),
+                sans,
+                ed ? null : jcaSignatureAlgorithm(hash, ecdsa),   // Ed25519 has a fixed sig scheme
                 ext == null ? null : ext.keyUsage(),
                 ext == null ? null : ext.extendedKeyUsage());
 
         GeneratedCsr out = csrService.generateDetailed(internal, rsaPkcs1);
 
-        GenerateResponse.Details details = ecdsa
-                ? new GenerateResponse.Details("ECDSA " + key.curve(), key.curve(), "PKCS#8", hash)
-                : new GenerateResponse.Details("RSA " + key.size(), key.size() + "-bit",
-                        rsaPkcs1 ? "PKCS#1" : "PKCS#8", hash);
-
+        GenerateResponse.Details details;
+        if (ed) {
+            details = new GenerateResponse.Details("Ed25519", "Ed25519", "PKCS#8", "Ed25519");
+        } else if (ecdsa) {
+            details = new GenerateResponse.Details("ECDSA " + key.curve(), key.curve(), "PKCS#8", hash);
+        } else {
+            details = new GenerateResponse.Details("RSA " + key.size(), key.size() + "-bit",
+                    rsaPkcs1 ? "PKCS#1" : "PKCS#8", hash);
+        }
         return new GenerateResponse(out.csrPem(), out.keyPem(), details);
     }
 
@@ -102,7 +114,13 @@ public class ContractService {
         DecodeResponse.Signature sig = new DecodeResponse.Signature(
                 prettySig(parsed.signatureAlgorithm()), parsed.signatureValid());
 
-        return new DecodeResponse(subject, sans, key, sig);
+        DecodeResponse.Extensions exts = (parsed.keyUsages() == null
+                && parsed.extendedKeyUsages() == null && parsed.basicConstraints() == null)
+                ? null
+                : new DecodeResponse.Extensions(
+                        parsed.keyUsages(), parsed.extendedKeyUsages(), parsed.basicConstraints());
+
+        return new DecodeResponse(subject, sans, key, sig, exts);
     }
 
     /* ---------------- match ---------------- */
@@ -119,16 +137,24 @@ public class ContractService {
     private static final Pattern IPV4_RE = Pattern.compile(
             "^((25[0-5]|2[0-4]\\d|1?\\d?\\d)\\.){3}(25[0-5]|2[0-4]\\d|1?\\d?\\d)$");
 
-    private boolean isEcdsa(String algorithm) {
+    /** RSA | ECDSA | ED25519 from the contract algorithm string. */
+    private String algoType(String algorithm) {
         String a = nz(algorithm).toUpperCase();
-        return a.equals("ECDSA") || a.equals("EC");
+        if (a.equals("ED25519") || a.equals("EDDSA")) {
+            return "ED25519";
+        }
+        if (a.equals("ECDSA") || a.equals("EC")) {
+            return "ECDSA";
+        }
+        return "RSA";
     }
 
     /** Rejects unknown key algorithms instead of silently falling back to RSA. */
     private void validateAlgorithm(String algorithm) {
         String a = nz(algorithm).toUpperCase();
-        if (!a.equals("RSA") && !a.equals("ECDSA") && !a.equals("EC")) {
-            throw new CryptoException("Unsupported key algorithm: '" + algorithm + "'. Use RSA or ECDSA.");
+        if (!a.equals("RSA") && !a.equals("ECDSA") && !a.equals("EC")
+                && !a.equals("ED25519") && !a.equals("EDDSA")) {
+            throw new CryptoException("Unsupported key algorithm: '" + algorithm + "'. Use RSA, ECDSA or Ed25519.");
         }
     }
 

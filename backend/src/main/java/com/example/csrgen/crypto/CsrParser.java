@@ -61,8 +61,94 @@ public class CsrParser {
         String sigAlgo = ALGO_FINDER.getAlgorithmName(csr.getSignatureAlgorithm());
         boolean sigValid = verifySignature(csr, spki);
 
+        org.bouncycastle.asn1.x509.Extensions exts = extensionsOf(csr);
+        List<String> keyUsages = extractKeyUsages(exts);
+        List<String> ekus = extractEkus(exts);
+        String basicConstraints = extractBasicConstraints(exts);
+
         return new CsrParseResponse(
-                subject.toString(), fields, sans, keyAlgo, keySize, sigAlgo, sigValid);
+                subject.toString(), fields, sans, keyAlgo, keySize, sigAlgo, sigValid,
+                keyUsages, ekus, basicConstraints);
+    }
+
+    private org.bouncycastle.asn1.x509.Extensions extensionsOf(PKCS10CertificationRequest csr) {
+        var attrs = csr.getAttributes(PKCSObjectIdentifiers.pkcs_9_at_extensionRequest);
+        if (attrs == null || attrs.length == 0) {
+            return null;
+        }
+        var values = attrs[0].getAttributeValues();
+        return values.length == 0 ? null : org.bouncycastle.asn1.x509.Extensions.getInstance(values[0]);
+    }
+
+    private List<String> extractKeyUsages(org.bouncycastle.asn1.x509.Extensions exts) {
+        if (exts == null) {
+            return null;
+        }
+        org.bouncycastle.asn1.x509.KeyUsage ku =
+                org.bouncycastle.asn1.x509.KeyUsage.fromExtensions(exts);
+        if (ku == null) {
+            return null;
+        }
+        record U(int bit, String name) {
+        }
+        List<U> all = List.of(
+                new U(org.bouncycastle.asn1.x509.KeyUsage.digitalSignature, "digitalSignature"),
+                new U(org.bouncycastle.asn1.x509.KeyUsage.nonRepudiation, "nonRepudiation"),
+                new U(org.bouncycastle.asn1.x509.KeyUsage.keyEncipherment, "keyEncipherment"),
+                new U(org.bouncycastle.asn1.x509.KeyUsage.dataEncipherment, "dataEncipherment"),
+                new U(org.bouncycastle.asn1.x509.KeyUsage.keyAgreement, "keyAgreement"),
+                new U(org.bouncycastle.asn1.x509.KeyUsage.keyCertSign, "keyCertSign"),
+                new U(org.bouncycastle.asn1.x509.KeyUsage.cRLSign, "cRLSign"));
+        List<String> out = new ArrayList<>();
+        for (U u : all) {
+            if (ku.hasUsages(u.bit())) {
+                out.add(u.name());
+            }
+        }
+        return out.isEmpty() ? null : out;
+    }
+
+    private List<String> extractEkus(org.bouncycastle.asn1.x509.Extensions exts) {
+        if (exts == null) {
+            return null;
+        }
+        org.bouncycastle.asn1.x509.ExtendedKeyUsage eku =
+                org.bouncycastle.asn1.x509.ExtendedKeyUsage.fromExtensions(exts);
+        if (eku == null) {
+            return null;
+        }
+        List<String> out = new ArrayList<>();
+        for (org.bouncycastle.asn1.x509.KeyPurposeId id : eku.getUsages()) {
+            out.add(ekuName(id));
+        }
+        return out.isEmpty() ? null : out;
+    }
+
+    private String ekuName(org.bouncycastle.asn1.x509.KeyPurposeId id) {
+        if (id.equals(org.bouncycastle.asn1.x509.KeyPurposeId.id_kp_serverAuth)) return "serverAuth";
+        if (id.equals(org.bouncycastle.asn1.x509.KeyPurposeId.id_kp_clientAuth)) return "clientAuth";
+        if (id.equals(org.bouncycastle.asn1.x509.KeyPurposeId.id_kp_codeSigning)) return "codeSigning";
+        if (id.equals(org.bouncycastle.asn1.x509.KeyPurposeId.id_kp_emailProtection)) return "emailProtection";
+        if (id.equals(org.bouncycastle.asn1.x509.KeyPurposeId.id_kp_timeStamping)) return "timeStamping";
+        if (id.equals(org.bouncycastle.asn1.x509.KeyPurposeId.id_kp_OCSPSigning)) return "ocspSigning";
+        return id.getId();
+    }
+
+    private String extractBasicConstraints(org.bouncycastle.asn1.x509.Extensions exts) {
+        if (exts == null) {
+            return null;
+        }
+        org.bouncycastle.asn1.x509.BasicConstraints bc =
+                org.bouncycastle.asn1.x509.BasicConstraints.fromExtensions(exts);
+        if (bc == null) {
+            return null;
+        }
+        if (!bc.isCA()) {
+            return "CA:FALSE";
+        }
+        return bc.getPathLenConstraint() != null
+                ? "CA:TRUE, pathlen:" + bc.getPathLenConstraint()
+                : "CA:TRUE";
     }
 
     public boolean verifySignature(PKCS10CertificationRequest csr, SubjectPublicKeyInfo spki) {

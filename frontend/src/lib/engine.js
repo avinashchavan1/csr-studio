@@ -291,12 +291,15 @@ export function opensslCommand(opts) {
   const subj = order.filter(([, v]) => v).map(([k, v]) => `/${k}=${v}`).join("");
   let keyspec, keyfile = safeName(s.CN) + ".key";
   let csrfile = safeName(s.CN) + ".csr";
-  if (opts.keyType === "ecdsa") {
-    keyspec = `-newkey ec -pkeyopt ec_paramgen_curve:${opts.size === "P-384" ? "secp384r1" : "prime256v1"}`;
+  if (opts.keyType === "ed25519") {
+    keyspec = `-newkey ed25519`;
+  } else if (opts.keyType === "ecdsa") {
+    keyspec = `-newkey ec -pkeyopt ec_paramgen_curve:${opts.size === "P-521" ? "secp521r1" : opts.size === "P-384" ? "secp384r1" : "prime256v1"}`;
   } else {
     keyspec = `-newkey rsa:${opts.size}`;
   }
-  const hashFlag = "-" + (opts.hash || "SHA-256").toLowerCase().replace("-", "");
+  // Ed25519 ignores the message-digest flag (EdDSA has a fixed scheme)
+  const hashFlag = opts.keyType === "ed25519" ? "" : "-" + (opts.hash || "SHA-256").toLowerCase().replace("-", "");
   let cmd = `openssl req -new ${keyspec} -nodes ${hashFlag} \\\n` +
     `  -keyout ${keyfile} \\\n` +
     `  -out ${csrfile} \\\n` +

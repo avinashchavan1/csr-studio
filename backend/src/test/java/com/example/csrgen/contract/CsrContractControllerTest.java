@@ -50,15 +50,16 @@ class CsrContractControllerTest {
     }
 
     @Test
-    void missingCommonNameReturnsErrorWithFields() throws Exception {
+    void noCommonNameAndNoSanRejected() throws Exception {
+        // CN is now optional (SAN-only CSRs allowed) — but a request with neither is rejected.
         String body = """
                 { "subject": { "organization": "X" },
                   "key": { "algorithm": "RSA", "size": 2048, "format": "PKCS#8" },
                   "signatureHash": "SHA-256" }""";
         mvc.perform(post("/csr/generate").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error.message").exists())
-                .andExpect(jsonPath("$.error.fields.commonName").exists());
+                .andExpect(jsonPath("$.error.message").value(
+                        org.hamcrest.Matchers.containsString("Common Name or at least one Subject Alternative Name")));
     }
 
     @Test

@@ -1,15 +1,16 @@
 package com.example.csrgen.contract.dto;
 
 import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 /**
  * Subject fields as named in the CSR Studio API contract.
+ *
+ * <p>commonName is optional — a SAN-only CSR is valid (ContractService enforces that at
+ * least a CN or one SAN is present).
  */
 public record ContractSubject(
-        @NotBlank(message = "Common Name is required.")
         @Size(max = 253, message = "Common Name is too long.") String commonName,
         @Size(max = 64) String organization,
         @Size(max = 64) String organizationalUnit,

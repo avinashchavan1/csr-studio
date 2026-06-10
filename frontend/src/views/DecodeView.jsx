@@ -186,6 +186,19 @@ export function DecodeView({ push }) {
                     </div>}
               </div>
             </div>
+
+            {decoded.extensions && (decoded.extensions.keyUsage || decoded.extensions.extendedKeyUsage || decoded.extensions.basicConstraints) && (
+              <div className="card">
+                <div className="card-head"><span className="ico"><Icon name="key" /></span><h3>Requested extensions</h3></div>
+                <div className="card-body">
+                  <dl className="meta">
+                    {decoded.extensions.keyUsage && <React.Fragment><dt>Key usage</dt><dd>{decoded.extensions.keyUsage.join(", ")}</dd></React.Fragment>}
+                    {decoded.extensions.extendedKeyUsage && <React.Fragment><dt>Extended key usage</dt><dd>{decoded.extensions.extendedKeyUsage.join(", ")}</dd></React.Fragment>}
+                    {decoded.extensions.basicConstraints && <React.Fragment><dt>Basic constraints</dt><dd>{decoded.extensions.basicConstraints}</dd></React.Fragment>}
+                  </dl>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

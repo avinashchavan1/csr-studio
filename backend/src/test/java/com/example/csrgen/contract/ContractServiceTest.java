@@ -140,6 +140,57 @@ class ContractServiceTest {
     }
 
     @Test
+    void generateEd25519() {
+        GenerateResponse g = contract.generate(new GenerateRequest(subject("ed.example.com"),
+                List.of(new ContractSan("DNS", "ed.example.com")),
+                new ContractKey("Ed25519", null, null, "PKCS#8"), "SHA-256"));
+        assertThat(g.details().keyLabel()).isEqualTo("Ed25519");
+        assertThat(g.privateKey()).contains("BEGIN PRIVATE KEY");
+        DecodeResponse d = contract.decode(g.csr());
+        assertThat(d.key().kind()).isEqualTo("Ed25519");
+        assertThat(d.signature().valid()).isTrue();
+    }
+
+    @Test
+    void decodeShowsRequestedExtensions() {
+        Extensions ext = new Extensions(List.of("digitalSignature", "keyEncipherment"), List.of("serverAuth"));
+        GenerateResponse g = contract.generate(new GenerateRequest(subject("x.com"),
+                List.of(new ContractSan("DNS", "x.com")),
+                new ContractKey("RSA", 2048, null, "PKCS#8"), "SHA-256", ext));
+        DecodeResponse d = contract.decode(g.csr());
+        assertThat(d.extensions()).isNotNull();
+        assertThat(d.extensions().keyUsage()).contains("digitalSignature", "keyEncipherment");
+        assertThat(d.extensions().extendedKeyUsage()).contains("serverAuth");
+    }
+
+    @Test
+    void sanOnlyCsrAllowedWhenCnEmpty() {
+        GenerateResponse g = contract.generate(new GenerateRequest(
+                new ContractSubject(null, null, null, null, null, null, null),
+                List.of(new ContractSan("DNS", "sanonly.example.com")),
+                new ContractKey("RSA", 2048, null, "PKCS#8"), "SHA-256"));
+        assertThat(contract.decode(g.csr()).subjectAltNames())
+                .extracting(ContractSan::value).contains("sanonly.example.com");
+    }
+
+    @Test
+    void noCnAndNoSanRejected() {
+        assertThatThrownBy(() -> contract.generate(new GenerateRequest(
+                new ContractSubject(null, null, null, null, null, null, null),
+                List.of(), new ContractKey("RSA", 2048, null, "PKCS#8"), "SHA-256")))
+                .isInstanceOf(CryptoException.class);
+    }
+
+    @Test
+    void countryUppercased() {
+        GenerateResponse g = contract.generate(new GenerateRequest(
+                new ContractSubject("c.com", null, null, null, null, "us", null),
+                List.of(new ContractSan("DNS", "c.com")),
+                new ContractKey("RSA", 2048, null, "PKCS#8"), "SHA-256"));
+        assertThat(contract.decode(g.csr()).subject().country()).isEqualTo("US");
+    }
+
+    @Test
     void matchTrueForOwnKey() {
         GenerateResponse gen = contract.generate(new GenerateRequest(subject("m.com"), List.of(),
                 new ContractKey("RSA", 2048, null, "PKCS#8"), "SHA-256"));
