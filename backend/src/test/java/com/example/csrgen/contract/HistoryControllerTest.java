@@ -37,7 +37,7 @@ class HistoryControllerTest {
 
     @BeforeEach
     void clean() throws Exception {
-        mvc.perform(delete("/csr/history")).andExpect(status().isNoContent());
+        mvc.perform(delete("/csr/history").header("X-Confirm-Clear", "yes")).andExpect(status().isNoContent());
     }
 
     @Test
@@ -89,7 +89,7 @@ class HistoryControllerTest {
     void clearRemovesAll() throws Exception {
         mvc.perform(post("/csr/history").contentType(MediaType.APPLICATION_JSON).content(REC));
         mvc.perform(post("/csr/history").contentType(MediaType.APPLICATION_JSON).content(REC));
-        mvc.perform(delete("/csr/history")).andExpect(status().isNoContent());
+        mvc.perform(delete("/csr/history").header("X-Confirm-Clear", "yes")).andExpect(status().isNoContent());
         mvc.perform(get("/csr/history")).andExpect(jsonPath("$.length()").value(0));
     }
 
