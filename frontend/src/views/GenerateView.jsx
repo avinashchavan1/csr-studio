@@ -25,7 +25,7 @@ export function emptyForm() {
   return {
     cn: "", sans: [], O: "", OU: "", L: "", ST: "", C: "US", email: "",
     keyType: "rsa", size: "2048", hash: "SHA-256", keyFormat: "pkcs8",
-    eku: [], ku: []
+    eku: [], ku: [], bcCa: false, bcPathLen: "", sanType: "AUTO", rsaPss: false
   };
 }
 
@@ -121,9 +121,13 @@ export function GenerateView({ seed, onGenerated, push }) {
   }));
 
   const addSan = () => {
-    const raw = sanInput.trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+    let raw = sanInput.trim();
+    // Only strip scheme/path for host-like types, not for URI/email SANs.
+    if (f.sanType === "AUTO" || f.sanType === "DNS" || f.sanType === "IP") {
+      raw = raw.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+    }
     if (!raw) return;
-    const type = classifySAN(raw);
+    const type = f.sanType === "AUTO" ? classifySAN(raw) : f.sanType;
     if (f.sans.some(s => s.value.toLowerCase() === raw.toLowerCase())) { setSanInput(""); return; }
     set("sans", [...f.sans, { type, value: raw }]);
     setSanInput("");
@@ -153,7 +157,8 @@ export function GenerateView({ seed, onGenerated, push }) {
     subject: subject(),
     sans: allSans.map(s => ({ type: s.type, value: s.value })),
     keyType: f.keyType, size: f.size, hash: f.hash, keyFormat: f.keyFormat,
-    keyUsage: f.ku, eku: f.eku
+    keyUsage: f.ku, eku: f.eku,
+    bcCa: f.bcCa, bcPathLen: f.bcPathLen, rsaPss: f.rsaPss
   });
 
   const toggle = (field, val) =>
@@ -192,6 +197,26 @@ export function GenerateView({ seed, onGenerated, push }) {
         setErrors(e);
       }
       push(err.message || "Generation failed", "err");
+    } finally {
+      clearInterval(timerRef.current);
+      setBusy(false); setProgress(null);
+    }
+  }
+
+  async function genSelfSigned() {
+    if (!validate()) { push("Please fix the highlighted fields.", "err"); return; }
+    setBusy(true); setResult(null); setProgress({ phase: "submitting" }); setElapsed(0);
+    const t0 = Date.now();
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => setElapsed((Date.now() - t0) / 1000), 100);
+    try {
+      const res = await api.selfSigned(opts());
+      setResult(res);
+      onGenerated && onGenerated(res);
+      push("Self-signed certificate issued on " + api.host());
+    } catch (err) {
+      console.error(err);
+      push(err.message || "Self-signed generation failed", "err");
     } finally {
       clearInterval(timerRef.current);
       setBusy(false); setProgress(null);
@@ -237,6 +262,10 @@ export function GenerateView({ seed, onGenerated, push }) {
 
             <Field label="Subject Alternative Names (SAN)" hint="Add every extra hostname or IP. The CN is included automatically.">
               <div className="input-row">
+                <div style={{ width: 104, flex: "none" }}>
+                  <Select value={f.sanType} onChange={v => set("sanType", v)}
+                    options={[{ value: "AUTO", label: "Auto" }, { value: "DNS", label: "DNS" }, { value: "IP", label: "IP" }, { value: "EMAIL", label: "Email" }, { value: "URI", label: "URI" }]} />
+                </div>
                 <input className="input mono" value={sanInput} placeholder="www.example.com, api.example.com, 203.0.113.10"
                   onChange={e => setSanInput(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addSan(); } }} />
@@ -304,6 +333,13 @@ export function GenerateView({ seed, onGenerated, push }) {
                     : <Segmented value={f.keyFormat} onChange={v => set("keyFormat", v)}
                         options={[{ value: "pkcs8", label: "PKCS#8" }, { value: "pkcs1", label: "PKCS#1 (traditional)" }]} />}
                 </Field>
+                {f.keyType === "rsa" && (
+                  <Field label="Signature scheme"
+                    hint="RSA-PSS (RSASSA-PSS) is the modern probabilistic scheme; PKCS#1 v1.5 is the legacy default with the widest compatibility.">
+                    <Segmented value={f.rsaPss ? "pss" : "pkcs1v15"} onChange={v => set("rsaPss", v === "pss")}
+                      options={[{ value: "pkcs1v15", label: "PKCS#1 v1.5" }, { value: "pss", label: "RSA-PSS" }]} />
+                  </Field>
+                )}
               </>
             )}
             <Field label="Certificate usage" optional
@@ -327,6 +363,17 @@ export function GenerateView({ seed, onGenerated, push }) {
                     ))}
                   </div>
                 </div>
+                <div>
+                  <div className="hint" style={{ marginBottom: 5 }}>Basic constraints</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <button type="button" className={"chip" + (f.bcCa ? "" : " empty")}
+                      style={{ cursor: "pointer" }} onClick={() => set("bcCa", !f.bcCa)}>CA certificate</button>
+                    {f.bcCa && (
+                      <input className="input mono" style={{ width: 150 }} placeholder="path length (opt.)"
+                        value={f.bcPathLen} onChange={e => set("bcPathLen", e.target.value.replace(/[^0-9]/g, ""))} />
+                    )}
+                  </div>
+                </div>
               </div>
             </Field>
 
@@ -344,8 +391,10 @@ export function GenerateView({ seed, onGenerated, push }) {
 
         <div style={{ display: "flex", gap: 10 }}>
           <Button variant="primary" size="lg" icon={busy ? null : "cert"} loading={busy} onClick={generate} style={{ flex: 1 }}>
-            {busy ? "Generating key pair…" : "Generate CSR & private key"}
+            {busy ? "Working…" : "Generate CSR & private key"}
           </Button>
+          <Button variant="ghost" size="lg" icon="shield" onClick={genSelfSigned} disabled={busy}
+            title="Generate a self-signed test certificate (connected mode)">Self-signed cert</Button>
           <Button variant="ghost" size="lg" icon="refresh" onClick={reset} title="Reset form" />
         </div>
       </div>
@@ -380,6 +429,18 @@ export function GenerateView({ seed, onGenerated, push }) {
             <CodeBlock title={fileBase + ".key — private key (" + (result.keyFormat || "PKCS#8") + ")"} value={result.keyPem}
               onCopy={() => doCopy(result.keyPem, "Private key")}
               onDownload={() => { download(fileBase + ".key", result.keyPem); push("Private key downloaded"); }} />
+
+            {result.certPem && (
+              <>
+                <div className="warn-strip">
+                  <Icon name="info" />
+                  <span><b>Self-signed test certificate.</b> Issued by this key itself — browsers won't trust it. Use for local/dev testing; submit the CSR to a real CA for a trusted certificate.</span>
+                </div>
+                <CodeBlock title={fileBase + ".crt — self-signed certificate"} value={result.certPem}
+                  onCopy={() => doCopy(result.certPem, "Certificate")}
+                  onDownload={() => { download(fileBase + ".crt", result.certPem); push("Certificate downloaded"); }} />
+              </>
+            )}
 
             <div className="card">
               <div className="card-head"><span className="ico"><Icon name="info" /></span><h3>Summary</h3>

@@ -55,6 +55,13 @@ public class CsrContractController {
         return ResponseEntity.ok(jobStore.generateSync(request, idempotencyKey));
     }
 
+    @PostMapping(value = "/self-signed", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public com.example.csrgen.contract.dto.SelfSignedResponse selfSigned(
+            @Valid @RequestBody GenerateRequest request,
+            @RequestParam(name = "days", defaultValue = "365") int days) {
+        return contractService.selfSigned(request, days);
+    }
+
     @GetMapping("/jobs/{jobId}")
     public ResponseEntity<JobStatusResponse> job(@PathVariable String jobId) {
         JobState job = jobStore.get(jobId);
