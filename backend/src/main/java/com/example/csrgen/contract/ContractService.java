@@ -21,8 +21,11 @@ import com.example.csrgen.domain.SanType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * Bridges the CSR Studio API contract to the internal crypto services:
@@ -45,6 +48,7 @@ public class ContractService {
 
     public GenerateResponse generate(GenerateRequest req) {
         ContractKey key = req.key();
+        validateAlgorithm(key.algorithm());
         boolean ecdsa = isEcdsa(key.algorithm());
         boolean rsaPkcs1 = !ecdsa && "PKCS#1".equalsIgnoreCase(nz(key.format()));
         String hash = StringUtils.hasText(req.signatureHash()) ? req.signatureHash() : "SHA-256";
@@ -54,7 +58,7 @@ public class ContractService {
                 ecdsa ? null : key.size(),
                 ecdsa ? key.curve() : null,
                 toSubjectDto(req.subject()),
-                toSanDtos(req.subjectAltNames()),
+                buildSans(req.subject().commonName(), req.subjectAltNames()),
                 jcaSignatureAlgorithm(hash, ecdsa));
 
         GeneratedCsr out = csrService.generateDetailed(internal, rsaPkcs1);
@@ -107,9 +111,86 @@ public class ContractService {
 
     /* ---------------- mapping helpers ---------------- */
 
+    private static final Pattern DNS_RE = Pattern.compile(
+            "^(\\*\\.)?([a-zA-Z0-9_](-?[a-zA-Z0-9_])*)(\\.[a-zA-Z0-9_](-?[a-zA-Z0-9_])*)*$");
+    private static final Pattern IPV4_RE = Pattern.compile(
+            "^((25[0-5]|2[0-4]\\d|1?\\d?\\d)\\.){3}(25[0-5]|2[0-4]\\d|1?\\d?\\d)$");
+
     private boolean isEcdsa(String algorithm) {
         String a = nz(algorithm).toUpperCase();
         return a.equals("ECDSA") || a.equals("EC");
+    }
+
+    /** Rejects unknown key algorithms instead of silently falling back to RSA. */
+    private void validateAlgorithm(String algorithm) {
+        String a = nz(algorithm).toUpperCase();
+        if (!a.equals("RSA") && !a.equals("ECDSA") && !a.equals("EC")) {
+            throw new CryptoException("Unsupported key algorithm: '" + algorithm + "'. Use RSA or ECDSA.");
+        }
+    }
+
+    private boolean isIpv4(String v) {
+        return IPV4_RE.matcher(v).matches();
+    }
+
+    private boolean isIp(String v) {
+        return isIpv4(v) || (v.contains(":") && v.matches("^[0-9a-fA-F:]+$"));
+    }
+
+    /**
+     * Builds the SAN list: validates each entry, dedupes, and ensures the CN is
+     * present as a SAN (CA/Browser Forum + RFC 6125 require it — browsers ignore CN).
+     */
+    private List<SanEntryDto> buildSans(String commonName, List<ContractSan> sans) {
+        LinkedHashMap<String, SanEntryDto> out = new LinkedHashMap<>();
+
+        String cn = nz(commonName).trim();
+        if (!cn.isEmpty()) {
+            SanType cnType = isIp(cn) ? SanType.IP : SanType.DNS;
+            addSan(out, cnType, cn);
+        }
+        if (sans != null) {
+            for (ContractSan s : sans) {
+                SanType type;
+                try {
+                    type = SanType.valueOf(nz(s.type()).toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    throw new CryptoException("Unsupported SAN type: " + s.type());
+                }
+                String v = nz(s.value()).trim();
+                validateSan(type, v);
+                addSan(out, type, v);
+            }
+        }
+        return new ArrayList<>(out.values());
+    }
+
+    private void addSan(LinkedHashMap<String, SanEntryDto> out, SanType type, String value) {
+        if (value.isEmpty()) {
+            return;
+        }
+        out.putIfAbsent(type.name() + "|" + value.toLowerCase(), new SanEntryDto(type, value));
+    }
+
+    private void validateSan(SanType type, String value) {
+        if (value.isEmpty()) {
+            throw new CryptoException("SAN value cannot be empty.");
+        }
+        switch (type) {
+            case IP -> {
+                if (!isIp(value)) {
+                    throw new CryptoException("Invalid IP address in SAN: " + value);
+                }
+            }
+            case DNS -> {
+                if (value.length() > 253 || !DNS_RE.matcher(value).matches()) {
+                    throw new CryptoException("Invalid DNS name in SAN: " + value);
+                }
+            }
+            default -> {
+                // EMAIL / URI accepted as-is
+            }
+        }
     }
 
     private SubjectDto toSubjectDto(ContractSubject s) {
@@ -119,21 +200,6 @@ public class ContractService {
         return new SubjectDto(
                 s.commonName(), s.organization(), s.organizationalUnit(),
                 s.locality(), s.state(), s.country(), s.email());
-    }
-
-    private List<SanEntryDto> toSanDtos(List<ContractSan> sans) {
-        if (sans == null) {
-            return List.of();
-        }
-        return sans.stream().map(s -> {
-            SanType type;
-            try {
-                type = SanType.valueOf(nz(s.type()).toUpperCase());
-            } catch (IllegalArgumentException e) {
-                throw new CryptoException("Unsupported SAN type: " + s.type());
-            }
-            return new SanEntryDto(type, s.value());
-        }).toList();
     }
 
     private String jcaSignatureAlgorithm(String hash, boolean ecdsa) {

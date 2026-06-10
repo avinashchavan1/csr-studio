@@ -57,9 +57,11 @@ Core crypto is **correct and interoperable** (every generated CSR verifies in op
 
 ## Remediation plan (checkpoints)
 
-### QA-CP1 — High severity (do first)
-1. **H-1** Fix IP SAN decode: in `CsrParser.extractSans`, for `GeneralName.iPAddress` decode the `ASN1OctetString` bytes → dotted-quad (4 bytes) / IPv6 (16 bytes). Add a unit test asserting `10.0.0.9`.
-2. **H-2** Make key-match **client-side always** (run `engine.keyMatch` in the browser even in connected mode; stop sending `privateKey` to `/csr/match`). Then the "compared locally, never sent anywhere" copy becomes true. (Or, if keeping server match, rewrite the copy mode-aware: "sent to <host> over TLS".) Recommend client-side.
+### QA-CP1 — High severity ✅ DONE (deployed + prod-verified 2026-06-10)
+1. **H-1 ✅** `CsrParser` now decodes IP SANs via `InetAddress.getByAddress` → dotted-quad/IPv6. Regression test added. Verified on prod (`10.0.0.9`, `192.168.1.250`).
+2. **H-2 ✅** `DecodeView` runs `engine.keyMatch` in-browser; `/csr/match` no longer receives the private key. The "compared locally, never sent anywhere" copy is now accurate. FE redeployed.
+
+> Deploy note: capped HikariCP pool to 5 (Supabase free = 15 conns); a deploy under load can still exhaust the pool during instance overlap → if a deploy shows `update_failed` with `Unable to determine Dialect`, suspend+resume the service (frees connections) then redeploy.
 
 ### QA-CP2 — Validation & error handling
 3. **M-2/M-3** Add handlers: `HttpMessageNotReadableException` → 400; map BouncyCastle/IllegalArgument (bad IP, bad SAN) to `CryptoException`/400. Generic 500 must return a **static** message (no `ex.getMessage()`).
