@@ -124,10 +124,27 @@ public class CsrParser {
         for (GeneralName gn : gns.getNames()) {
             SanType type = sanType(gn.getTagNo());
             if (type != null) {
-                result.add(new SanEntryDto(type, gn.getName().toString()));
+                result.add(new SanEntryDto(type, sanValue(type, gn)));
             }
         }
         return result;
+    }
+
+    /**
+     * Renders a SAN value. IP addresses come as raw ASN.1 octets — decode them to a
+     * dotted-quad (4 bytes) or IPv6 literal (16 bytes) instead of a hex dump.
+     */
+    private String sanValue(SanType type, GeneralName gn) {
+        if (type == SanType.IP) {
+            try {
+                byte[] octets = org.bouncycastle.asn1.ASN1OctetString
+                        .getInstance(gn.getName()).getOctets();
+                return java.net.InetAddress.getByAddress(octets).getHostAddress();
+            } catch (Exception e) {
+                // fall through to default rendering
+            }
+        }
+        return gn.getName().toString();
     }
 
     private SanType sanType(int tag) {

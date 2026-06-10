@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { Icon, Field, Button, Pill } from "../components/ui.jsx";
 import * as api from "../lib/api.js";
+import * as engine from "../lib/engine.js";
 
 const SAMPLE_CSR_HINT = "Paste a PEM-encoded CSR beginning with -----BEGIN CERTIFICATE REQUEST-----";
 
@@ -27,7 +28,9 @@ export function DecodeView({ push }) {
       const res = await api.decode(pem);
       setDecoded(res);
       if (kpem) {
-        try { setMatch(await api.match(pem, kpem)); }
+        // Key match runs entirely in-browser (node-forge) — the private key is
+        // NEVER sent to the server, so the "compared locally" promise holds.
+        try { setMatch(engine.keyMatch(pem, kpem)); }
         catch (e) { setMatch({ supported: false, msg: e.message || "Couldn't compare the key pair." }); }
       }
       push(api.mode() === "demo" ? "CSR decoded (demo)" : "CSR decoded on " + api.host());

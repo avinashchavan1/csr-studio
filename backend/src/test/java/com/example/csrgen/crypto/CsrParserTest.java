@@ -32,4 +32,29 @@ class CsrParserTest {
         assertThatThrownBy(() -> parser.parse("not a csr"))
                 .isInstanceOf(CryptoException.class);
     }
+
+    @Test
+    void decodesIpSanAsDottedQuadNotHex() {
+        var req = new com.example.csrgen.api.dto.CsrRequest(
+                com.example.csrgen.domain.KeyAlgorithm.RSA, 2048, null,
+                CryptoTestSupport.subject("ip.example.com"),
+                java.util.List.of(
+                        new com.example.csrgen.api.dto.SanEntryDto(
+                                com.example.csrgen.domain.SanType.DNS, "ip.example.com"),
+                        new com.example.csrgen.api.dto.SanEntryDto(
+                                com.example.csrgen.domain.SanType.IP, "10.0.0.9")),
+                null);
+        GeneratedCsr g = csr.generateDetailed(req, false);
+        CsrParseResponse p = parser.parse(g.csrPem());
+
+        assertThat(p.subjectAltNames())
+                .anySatisfy(s -> {
+                    if (s.type() == com.example.csrgen.domain.SanType.IP) {
+                        assertThat(s.value()).isEqualTo("10.0.0.9");
+                    }
+                });
+        assertThat(p.subjectAltNames()).extracting(s -> s.value())
+                .contains("10.0.0.9")
+                .doesNotContain("#0a000009");
+    }
 }
