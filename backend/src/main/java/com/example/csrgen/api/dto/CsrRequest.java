@@ -24,11 +24,21 @@ public record CsrRequest(
         @Valid List<SanEntryDto> subjectAltNames,
         String signatureAlgorithm,
         List<String> keyUsages,
-        List<String> extendedKeyUsages
+        List<String> extendedKeyUsages,
+        Boolean caConstraint,
+        Integer pathLenConstraint
 ) {
-    /** Back-compat constructor for callers that don't request extensions. */
+    /** Back-compat: no extensions at all. */
     public CsrRequest(KeyAlgorithm keyAlgorithm, Integer keySize, String ecCurve,
                       SubjectDto subject, List<SanEntryDto> subjectAltNames, String signatureAlgorithm) {
-        this(keyAlgorithm, keySize, ecCurve, subject, subjectAltNames, signatureAlgorithm, null, null);
+        this(keyAlgorithm, keySize, ecCurve, subject, subjectAltNames, signatureAlgorithm, null, null, null, null);
+    }
+
+    /** Back-compat: key usages / EKU but no basicConstraints. */
+    public CsrRequest(KeyAlgorithm keyAlgorithm, Integer keySize, String ecCurve,
+                      SubjectDto subject, List<SanEntryDto> subjectAltNames, String signatureAlgorithm,
+                      List<String> keyUsages, List<String> extendedKeyUsages) {
+        this(keyAlgorithm, keySize, ecCurve, subject, subjectAltNames, signatureAlgorithm,
+                keyUsages, extendedKeyUsages, null, null);
     }
 }

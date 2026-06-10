@@ -24,7 +24,13 @@ public record GenerateRequest(
     /** Optional X.509 v3 extension requests carried in the CSR. */
     public record Extensions(
             List<String> keyUsage,
-            List<String> extendedKeyUsage
+            List<String> extendedKeyUsage,
+            Boolean basicConstraintsCa,
+            Integer basicConstraintsPathLen
     ) {
+        /** Back-compat: keyUsage/EKU only. */
+        public Extensions(List<String> keyUsage, List<String> extendedKeyUsage) {
+            this(keyUsage, extendedKeyUsage, null, null);
+        }
     }
 }

@@ -123,12 +123,21 @@ function generateRequest(o) {
       ? { algorithm: "Ed25519", format: "PKCS#8" }
       : o.keyType === "ecdsa"
         ? { algorithm: "ECDSA", curve: o.size, format: "PKCS#8" }
-        : { algorithm: "RSA", size: parseInt(o.size, 10), format: o.keyFormat === "pkcs1" ? "PKCS#1" : "PKCS#8" },
+        : { algorithm: "RSA", size: parseInt(o.size, 10), format: o.keyFormat === "pkcs1" ? "PKCS#1" : "PKCS#8", ...(o.rsaPss ? { rsaPss: true } : {}) },
     signatureHash: o.hash || "SHA-256",
-    ...(((o.keyUsage && o.keyUsage.length) || (o.eku && o.eku.length))
-      ? { extensions: { keyUsage: o.keyUsage || [], extendedKeyUsage: o.eku || [] } }
-      : {})
+    ...buildExtensions(o)
   };
+}
+function buildExtensions(o) {
+  const hasKu = o.keyUsage && o.keyUsage.length;
+  const hasEku = o.eku && o.eku.length;
+  if (!hasKu && !hasEku && !o.bcCa) return {};
+  const ext = { keyUsage: o.keyUsage || [], extendedKeyUsage: o.eku || [] };
+  if (o.bcCa) {
+    ext.basicConstraintsCa = true;
+    if (o.bcPathLen !== "" && o.bcPathLen != null) ext.basicConstraintsPathLen = parseInt(o.bcPathLen, 10);
+  }
+  return { extensions: ext };
 }
 function normGenerate(r, o) {
   const d = r.details || {};
@@ -206,6 +215,15 @@ export async function generate(opts, hooks) {
   if (status === 202 || (data && data.jobId && !data.csr)) return pollJob(data, opts, onProgress);
   onProgress({ phase: "done" });
   return normGenerate(data, opts);
+}
+export async function selfSigned(opts, days = 365) {
+  if (mode() === "demo") {
+    throw new ApiError("Self-signed test certificates require a connected backend (not available in demo).");
+  }
+  const { data } = await request("/csr/self-signed?days=" + days, { body: generateRequest(opts), retries: 0 });
+  const r = normGenerate({ csr: data.csr, privateKey: data.privateKey, details: data.details }, opts);
+  r.certPem = data.certificate;
+  return r;
 }
 export async function decode(pem) {
   if (mode() === "demo") { await sleep(Math.min(config.demoLatencyMs, 450)); return engine.decode(pem); }
@@ -321,5 +339,5 @@ export const SAMPLES = {
   }
 };
 
-const CSRApi = { generate, decode, match, getConfig, setConfig, mode, host, testConnection, generateRequest, historyList, historySave, historyDelete, historyClear, ApiError, SAMPLES, DEFAULTS };
+const CSRApi = { generate, selfSigned, decode, match, getConfig, setConfig, mode, host, testConnection, generateRequest, historyList, historySave, historyDelete, historyClear, ApiError, SAMPLES, DEFAULTS };
 export default CSRApi;

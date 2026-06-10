@@ -38,8 +38,10 @@ class ContractServiceTest {
     private final CsrParser parser = new CsrParser();
     private final CsrService csrService =
             new CsrService(new KeyPairService(), new ValidationService());
+    private final ConversionService conversion = new ConversionService();
     private final ContractService contract = new ContractService(
-            csrService, parser, new MatchService(parser, new ConversionService()));
+            csrService, parser, new MatchService(parser, conversion),
+            new com.example.csrgen.crypto.CertService(parser, conversion));
 
     private ContractSubject subject(String cn) {
         return new ContractSubject(cn, "Example Inc.", "IT", "San Francisco", "California", "US", "a@b.com");
@@ -188,6 +190,41 @@ class ContractServiceTest {
                 List.of(new ContractSan("DNS", "c.com")),
                 new ContractKey("RSA", 2048, null, "PKCS#8"), "SHA-256"));
         assertThat(contract.decode(g.csr()).subject().country()).isEqualTo("US");
+    }
+
+    @Test
+    void basicConstraintsRequestedAndDecoded() {
+        Extensions ext = new Extensions(List.of("keyCertSign"), null, true, 1);
+        GenerateResponse g = contract.generate(new GenerateRequest(subject("ca.example.com"),
+                List.of(new ContractSan("DNS", "ca.example.com")),
+                new ContractKey("RSA", 2048, null, "PKCS#8"), "SHA-256", ext));
+        DecodeResponse d = contract.decode(g.csr());
+        assertThat(d.extensions().basicConstraints()).contains("CA:TRUE");
+    }
+
+    @Test
+    void rsaPssSignature() {
+        GenerateResponse g = contract.generate(new GenerateRequest(subject("pss.example.com"),
+                List.of(new ContractSan("DNS", "pss.example.com")),
+                new ContractKey("RSA", 2048, null, "PKCS#8", true), "SHA-256"));
+        assertThat(g.details().signatureAlgorithm()).contains("PSS");
+        assertThat(parser.parse(g.csr()).signatureValid()).isTrue();
+    }
+
+    @Test
+    void selfSignedCertificateFromCsr() throws Exception {
+        var r = contract.selfSigned(new GenerateRequest(subject("self.example.com"),
+                List.of(new ContractSan("DNS", "self.example.com")),
+                new ContractKey("RSA", 2048, null, "PKCS#8"), "SHA-256"), 365);
+        assertThat(r.certificate()).contains("BEGIN CERTIFICATE");
+        assertThat(r.csr()).contains("BEGIN CERTIFICATE REQUEST");
+
+        var cf = java.security.cert.CertificateFactory.getInstance("X.509",
+                org.bouncycastle.jce.provider.BouncyCastleProvider.PROVIDER_NAME);
+        var cert = (java.security.cert.X509Certificate) cf.generateCertificate(
+                new java.io.ByteArrayInputStream(r.certificate().getBytes()));
+        assertThat(cert.getSubjectX500Principal().getName()).contains("self.example.com");
+        cert.checkValidity(); // not expired
     }
 
     @Test

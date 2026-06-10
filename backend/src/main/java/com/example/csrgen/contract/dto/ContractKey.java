@@ -14,6 +14,11 @@ public record ContractKey(
         @NotBlank String algorithm,
         Integer size,
         String curve,
-        String format
+        String format,
+        Boolean rsaPss
 ) {
+    /** Back-compat: no PSS flag. */
+    public ContractKey(String algorithm, Integer size, String curve, String format) {
+        this(algorithm, size, curve, format, null);
+    }
 }

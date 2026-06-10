@@ -9,6 +9,7 @@ import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.X500NameBuilder;
 import org.bouncycastle.asn1.x500.style.BCStyle;
+import org.bouncycastle.asn1.x509.BasicConstraints;
 import org.bouncycastle.asn1.x509.ExtendedKeyUsage;
 import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.ExtensionsGenerator;
@@ -160,6 +161,15 @@ public class CsrService {
         if (!ekus.isEmpty()) {
             extGen.addExtension(Extension.extendedKeyUsage, false,
                     new ExtendedKeyUsage(ekus.toArray(new KeyPurposeId[0])));
+            any = true;
+        }
+
+        if (req.caConstraint() != null) {
+            BasicConstraints bc = req.caConstraint()
+                    ? (req.pathLenConstraint() != null
+                        ? new BasicConstraints(req.pathLenConstraint()) : new BasicConstraints(true))
+                    : new BasicConstraints(false);
+            extGen.addExtension(Extension.basicConstraints, true, bc);
             any = true;
         }
 

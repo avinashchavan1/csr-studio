@@ -37,11 +37,22 @@ public class ContractService {
     private final CsrService csrService;
     private final CsrParser csrParser;
     private final MatchService matchService;
+    private final com.example.csrgen.crypto.CertService certService;
 
-    public ContractService(CsrService csrService, CsrParser csrParser, MatchService matchService) {
+    public ContractService(CsrService csrService, CsrParser csrParser, MatchService matchService,
+                           com.example.csrgen.crypto.CertService certService) {
         this.csrService = csrService;
         this.csrParser = csrParser;
         this.matchService = matchService;
+        this.certService = certService;
+    }
+
+    /** Generate a CSR, then self-sign a test certificate from it. */
+    public com.example.csrgen.contract.dto.SelfSignedResponse selfSigned(GenerateRequest req, int days) {
+        GenerateResponse gen = generate(req);
+        String cert = certService.selfSign(gen.csr(), gen.privateKey(), days);
+        return new com.example.csrgen.contract.dto.SelfSignedResponse(
+                cert, gen.privateKey(), gen.csr(), gen.details());
     }
 
     /* ---------------- generate ---------------- */
@@ -61,6 +72,12 @@ public class ContractService {
             throw new CryptoException("Provide a Common Name or at least one Subject Alternative Name.");
         }
 
+        boolean pss = rsa && Boolean.TRUE.equals(key.rsaPss());
+        String sigAlg = ed ? null
+                : ecdsa ? jcaSignatureAlgorithm(hash, true)
+                : pss ? jcaPssAlgorithm(hash)
+                : jcaSignatureAlgorithm(hash, false);
+
         GenerateRequest.Extensions ext = req.extensions();
         CsrRequest internal = new CsrRequest(
                 ed ? KeyAlgorithm.ED25519 : ecdsa ? KeyAlgorithm.EC : KeyAlgorithm.RSA,
@@ -68,9 +85,11 @@ public class ContractService {
                 ecdsa ? key.curve() : null,
                 toSubjectDto(req.subject()),
                 sans,
-                ed ? null : jcaSignatureAlgorithm(hash, ecdsa),   // Ed25519 has a fixed sig scheme
+                sigAlg,
                 ext == null ? null : ext.keyUsage(),
-                ext == null ? null : ext.extendedKeyUsage());
+                ext == null ? null : ext.extendedKeyUsage(),
+                ext == null ? null : ext.basicConstraintsCa(),
+                ext == null ? null : ext.basicConstraintsPathLen());
 
         GeneratedCsr out = csrService.generateDetailed(internal, rsaPkcs1);
 
@@ -81,7 +100,7 @@ public class ContractService {
             details = new GenerateResponse.Details("ECDSA " + key.curve(), key.curve(), "PKCS#8", hash);
         } else {
             details = new GenerateResponse.Details("RSA " + key.size(), key.size() + "-bit",
-                    rsaPkcs1 ? "PKCS#1" : "PKCS#8", hash);
+                    rsaPkcs1 ? "PKCS#1" : "PKCS#8", pss ? hash + " (RSA-PSS)" : hash);
         }
         return new GenerateResponse(out.csrPem(), out.keyPem(), details);
     }
@@ -239,6 +258,15 @@ public class ContractService {
         return new SubjectDto(
                 s.commonName(), s.organization(), s.organizationalUnit(),
                 s.locality(), s.state(), s.country(), s.email());
+    }
+
+    /** RSASSA-PSS signature algorithm name for Bouncy Castle (e.g. SHA256withRSAandMGF1). */
+    private String jcaPssAlgorithm(String hash) {
+        String h = nz(hash).toUpperCase().replace("-", "");
+        if (h.isEmpty()) {
+            h = "SHA256";
+        }
+        return h + "withRSAandMGF1";
     }
 
     private String jcaSignatureAlgorithm(String hash, boolean ecdsa) {

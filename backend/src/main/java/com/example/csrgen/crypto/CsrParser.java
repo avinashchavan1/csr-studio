@@ -71,7 +71,7 @@ public class CsrParser {
                 keyUsages, ekus, basicConstraints);
     }
 
-    private org.bouncycastle.asn1.x509.Extensions extensionsOf(PKCS10CertificationRequest csr) {
+    public org.bouncycastle.asn1.x509.Extensions extensionsOf(PKCS10CertificationRequest csr) {
         var attrs = csr.getAttributes(PKCSObjectIdentifiers.pkcs_9_at_extensionRequest);
         if (attrs == null || attrs.length == 0) {
             return null;
