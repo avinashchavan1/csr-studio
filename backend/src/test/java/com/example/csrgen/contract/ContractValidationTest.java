@@ -96,6 +96,20 @@ class ContractValidationTest {
     }
 
     @Test
+    void tooManySansRejected() throws Exception {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < 101; i++) {
+            if (i > 0) sb.append(",");
+            sb.append("{\"type\":\"DNS\",\"value\":\"h").append(i).append(".example.com\"}");
+        }
+        sb.append("]");
+        mvc.perform(post("/csr/generate").contentType(MediaType.APPLICATION_JSON)
+                        .content(gen("{\"commonName\":\"a.com\"}", sb.toString(), RSA)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value(org.hamcrest.Matchers.containsString("Too many")));
+    }
+
+    @Test
     void cnOnlyStillProducesSan() throws Exception {
         MvcResult gen = mvc.perform(post("/csr/generate").contentType(MediaType.APPLICATION_JSON)
                         .content(gen("{\"commonName\":\"solo.example.com\"}", "[]", RSA)))

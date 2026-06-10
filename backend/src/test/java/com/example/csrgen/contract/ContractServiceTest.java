@@ -20,7 +20,11 @@ import org.junit.jupiter.api.Test;
 import java.security.Security;
 import java.util.List;
 
+import com.example.csrgen.contract.dto.GenerateRequest.Extensions;
+import com.example.csrgen.crypto.CryptoException;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ContractServiceTest {
 
@@ -99,6 +103,40 @@ class ContractServiceTest {
         DecodeResponse d = contract.decode(gen.csr());
         assertThat(d.key().kind()).isEqualTo("ECDSA");
         assertThat(d.key().detail()).isEqualTo("P-384");
+    }
+
+    @Test
+    void emailAddedAsRfc822San() {
+        GenerateResponse g = contract.generate(new GenerateRequest(
+                new ContractSubject("e.example.com", null, null, null, null, "US", "admin@example.com"),
+                List.of(), new ContractKey("RSA", 2048, null, "PKCS#8"), "SHA-256"));
+        DecodeResponse d = contract.decode(g.csr());
+        assertThat(d.subjectAltNames()).extracting(ContractSan::value).contains("admin@example.com");
+    }
+
+    @Test
+    void signatureAlgorithmPretty() {
+        GenerateResponse g = contract.generate(new GenerateRequest(subject("p.com"), List.of(),
+                new ContractKey("RSA", 2048, null, "PKCS#8"), "SHA-256"));
+        assertThat(contract.decode(g.csr()).signature().algorithm()).contains("withRSA");
+    }
+
+    @Test
+    void generateWithKeyUsageAndEku() {
+        Extensions ext = new Extensions(List.of("digitalSignature", "keyEncipherment"), List.of("serverAuth", "clientAuth"));
+        GenerateResponse g = contract.generate(new GenerateRequest(subject("x.com"),
+                List.of(new ContractSan("DNS", "x.com")),
+                new ContractKey("RSA", 2048, null, "PKCS#8"), "SHA-256", ext));
+        assertThat(g.csr()).contains("BEGIN CERTIFICATE REQUEST");
+        assertThat(parser.parse(g.csr()).signatureValid()).isTrue();
+    }
+
+    @Test
+    void unknownKeyUsageRejected() {
+        Extensions ext = new Extensions(List.of("bogusUsage"), null);
+        assertThatThrownBy(() -> contract.generate(new GenerateRequest(subject("x.com"), List.of(),
+                new ContractKey("RSA", 2048, null, "PKCS#8"), "SHA-256", ext)))
+                .isInstanceOf(CryptoException.class);
     }
 
     @Test

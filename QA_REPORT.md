@@ -68,11 +68,13 @@ Core crypto is **correct and interoperable** (every generated CSR verifies in op
 4. **M-4 ✅** Unknown key algorithm → 400 ("Unsupported key algorithm…"), no silent RSA fallback.
 5. **M-5 ✅** Country (`^[A-Za-z]{2}$`) + email (`@Email`) bean-validated → 400 with `error.fields`; DNS/IP SAN syntax validated; **CN auto-added to SAN (deduped)** so every CSR has a usable SAN. All verified on prod.
 
-### QA-CP3 — Hardening
-6. **M-1** Add auth (the deferred JWT) **or** scope history per anonymous client id + remove/guard global `DELETE`. At minimum rate-limit + cap rows.
-7. **M-6** Add rate limiting (e.g. Bucket4j) on `/csr/generate` and `/csr/match`; cap SAN count (e.g. ≤100) and request body size.
-8. **M-7** Add security headers (HSTS, `X-Content-Type-Options`, `X-Frame-Options`, CSP) via a filter / Spring Security.
-9. **M-8** Set `Cache-Control: no-store` on `/csr/generate` (and any key-bearing) responses.
+### QA-CP3 — Hardening ✅ DONE (deployed + prod-verified 2026-06-10; JWT auth deferred by owner)
+6. **M-1 (lite) ✅** History capped at 500 rows (oldest trimmed); bulk `DELETE` requires `X-Confirm-Clear: yes`. Full per-user auth (JWT) remains deferred — history is still shared/anonymous.
+7. **M-6 ✅** Per-IP fixed-window rate limit (120/min) on `/csr/generate|match|history` POST → 429. Verified: 160 concurrent → 120 OK + 40×429.
+8. **M-7 ✅** Security headers filter: HSTS, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`.
+9. **M-8 ✅** `Cache-Control: no-store` on all API responses (verified on key-bearing `/csr/generate`).
+
+> Residual: under extreme concurrent load the DB pool (5, Supabase free) can exhaust → 500s; the rate limit keeps normal traffic well clear. Revisit pool/queueing if real load grows.
 
 ### QA-CP4 — PKI completeness & polish
 10. **L-1/L-2** Validate stored `csrPem`; dedup/cap SANs server-side.

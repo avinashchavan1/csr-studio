@@ -22,6 +22,13 @@ public record CsrRequest(
         String ecCurve,
         @NotNull @Valid SubjectDto subject,
         @Valid List<SanEntryDto> subjectAltNames,
-        String signatureAlgorithm
+        String signatureAlgorithm,
+        List<String> keyUsages,
+        List<String> extendedKeyUsages
 ) {
+    /** Back-compat constructor for callers that don't request extensions. */
+    public CsrRequest(KeyAlgorithm keyAlgorithm, Integer keySize, String ecCurve,
+                      SubjectDto subject, List<SanEntryDto> subjectAltNames, String signatureAlgorithm) {
+        this(keyAlgorithm, keySize, ecCurve, subject, subjectAltNames, signatureAlgorithm, null, null);
+    }
 }

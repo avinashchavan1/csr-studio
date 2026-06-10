@@ -7,6 +7,7 @@ import * as api from "../lib/api.js";
 
 function strengthFor(keyType, size) {
   if (keyType === "ecdsa") {
+    if (size === "P-521") return { lvl: 4, label: "Very strong", note: "ECDSA P-521 · ~256-bit security" };
     return size === "P-384"
       ? { lvl: 4, label: "Very strong", note: "ECDSA P-384 · ~192-bit security" }
       : { lvl: 4, label: "Strong · modern", note: "ECDSA P-256 · ~128-bit, fast handshakes" };
@@ -20,7 +21,8 @@ function strengthFor(keyType, size) {
 export function emptyForm() {
   return {
     cn: "", sans: [], O: "", OU: "", L: "", ST: "", C: "US", email: "",
-    keyType: "rsa", size: "2048", hash: "SHA-256", keyFormat: "pkcs8"
+    keyType: "rsa", size: "2048", hash: "SHA-256", keyFormat: "pkcs8",
+    eku: [], ku: []
   };
 }
 
@@ -145,8 +147,12 @@ export function GenerateView({ seed, onGenerated, push }) {
   const opts = () => ({
     subject: subject(),
     sans: allSans.map(s => ({ type: s.type, value: s.value })),
-    keyType: f.keyType, size: f.size, hash: f.hash, keyFormat: f.keyFormat
+    keyType: f.keyType, size: f.size, hash: f.hash, keyFormat: f.keyFormat,
+    keyUsage: f.ku, eku: f.eku
   });
+
+  const toggle = (field, val) =>
+    set(field, f[field].includes(val) ? f[field].filter(x => x !== val) : [...f[field], val]);
 
   const cmd = engine.opensslCommand(opts());
   const strength = strengthFor(f.keyType, f.size);
@@ -286,6 +292,30 @@ export function GenerateView({ seed, onGenerated, push }) {
                 : <Segmented value={f.keyFormat} onChange={v => set("keyFormat", v)}
                     options={[{ value: "pkcs8", label: "PKCS#8" }, { value: "pkcs1", label: "PKCS#1 (traditional)" }]} />}
             </Field>
+            <Field label="Certificate usage" optional
+              hint="X.509 extensions requested in the CSR. Public CAs usually set these themselves; handy for internal CAs that honour them.">
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div>
+                  <div className="hint" style={{ marginBottom: 5 }}>Extended key usage</div>
+                  <div className="chips">
+                    {[["serverAuth", "TLS Server"], ["clientAuth", "TLS Client"], ["codeSigning", "Code signing"], ["emailProtection", "Email"]].map(([v, l]) => (
+                      <button key={v} type="button" className={"chip" + (f.eku.includes(v) ? "" : " empty")}
+                        style={{ cursor: "pointer" }} onClick={() => toggle("eku", v)}>{l}</button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <div className="hint" style={{ marginBottom: 5 }}>Key usage</div>
+                  <div className="chips">
+                    {[["digitalSignature", "Digital signature"], ["keyEncipherment", "Key encipherment"], ["dataEncipherment", "Data encipherment"], ["keyAgreement", "Key agreement"]].map(([v, l]) => (
+                      <button key={v} type="button" className={"chip" + (f.ku.includes(v) ? "" : " empty")}
+                        style={{ cursor: "pointer" }} onClick={() => toggle("ku", v)}>{l}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </Field>
+
             <div className="strength">
               <div className={"strength s" + strength.lvl}>
                 <div className="strength-bar"><i></i><i></i><i></i><i></i></div>

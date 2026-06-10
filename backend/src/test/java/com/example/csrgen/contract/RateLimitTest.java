@@ -18,7 +18,7 @@ class RateLimitTest {
     @Autowired MockMvc mvc;
 
     private static final String REC =
-            "{\"commonName\":\"rl.example.com\",\"csrPem\":\"x\"}";
+            "{\"commonName\":\"rl.example.com\",\"csrPem\":\"-----BEGIN CERTIFICATE REQUEST-----\\nx\\n-----END CERTIFICATE REQUEST-----\"}";
 
     @Test
     void exceedingCapacityReturns429() throws Exception {

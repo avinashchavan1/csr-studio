@@ -34,6 +34,9 @@ public class HistoryService {
 
     @Transactional
     public HistoryRecord save(HistoryRecord req) {
+        if (req.csrPem() == null || !req.csrPem().contains("BEGIN CERTIFICATE REQUEST")) {
+            throw new CryptoException("csrPem must be a PEM-encoded certificate request.");
+        }
         String sansJson = writeSans(req.sans());
         CsrHistory entity = new CsrHistory(
                 UUID.randomUUID().toString(),
