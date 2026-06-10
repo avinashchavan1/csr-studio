@@ -9,11 +9,20 @@ public record DecodeResponse(
         ContractSubject subject,
         List<ContractSan> subjectAltNames,
         Key key,
-        Signature signature
+        Signature signature,
+        Extensions extensions
 ) {
     public record Key(String kind, String detail, Integer bits) {
     }
 
     public record Signature(String algorithm, Boolean valid) {
+    }
+
+    /** Extension requests found in the CSR (null entries when absent). */
+    public record Extensions(
+            List<String> keyUsage,
+            List<String> extendedKeyUsage,
+            String basicConstraints
+    ) {
     }
 }

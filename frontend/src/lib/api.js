@@ -119,9 +119,11 @@ function generateRequest(o) {
       locality: s.L || "", state: s.ST || "", country: s.C || "", email: s.email || ""
     },
     subjectAltNames: (o.sans || []).map(x => ({ type: x.type, value: x.value })),
-    key: o.keyType === "ecdsa"
-      ? { algorithm: "ECDSA", curve: o.size, format: "PKCS#8" }
-      : { algorithm: "RSA", size: parseInt(o.size, 10), format: o.keyFormat === "pkcs1" ? "PKCS#1" : "PKCS#8" },
+    key: o.keyType === "ed25519"
+      ? { algorithm: "Ed25519", format: "PKCS#8" }
+      : o.keyType === "ecdsa"
+        ? { algorithm: "ECDSA", curve: o.size, format: "PKCS#8" }
+        : { algorithm: "RSA", size: parseInt(o.size, 10), format: o.keyFormat === "pkcs1" ? "PKCS#1" : "PKCS#8" },
     signatureHash: o.hash || "SHA-256",
     ...(((o.keyUsage && o.keyUsage.length) || (o.eku && o.eku.length))
       ? { extensions: { keyUsage: o.keyUsage || [], extendedKeyUsage: o.eku || [] } }
@@ -130,11 +132,12 @@ function generateRequest(o) {
 }
 function normGenerate(r, o) {
   const d = r.details || {};
+  const fallbackLabel = o.keyType === "ed25519" ? "Ed25519" : o.keyType === "ecdsa" ? "ECDSA " + o.size : "RSA " + o.size;
   return {
     csrPem: r.csr, keyPem: r.privateKey,
-    keyLabel: d.keyLabel || (o.keyType === "ecdsa" ? "ECDSA " + o.size : "RSA " + o.size),
+    keyLabel: d.keyLabel || fallbackLabel,
     keyFormat: d.keyFormat || (o.keyType === "ecdsa" ? "PKCS#8" : (o.keyFormat === "pkcs1" ? "PKCS#1" : "PKCS#8")),
-    keyKind: o.keyType === "ecdsa" ? "ECDSA" : "RSA",
+    keyKind: o.keyType === "ed25519" ? "Ed25519" : o.keyType === "ecdsa" ? "ECDSA" : "RSA",
     keyDetail: d.keyDetail || "",
     sigAlg: d.signatureAlgorithm || o.hash,
     hash: o.hash, keyType: o.keyType, size: o.size,
@@ -150,7 +153,8 @@ function normDecode(r) {
     keyKind: (r.key && r.key.kind) || "Unknown",
     keyDetail: (r.key && r.key.detail) || "",
     verified: r.signature ? !!r.signature.valid : null,
-    sigAlg: (r.signature && r.signature.algorithm) || ""
+    sigAlg: (r.signature && r.signature.algorithm) || "",
+    extensions: r.extensions || null
   };
 }
 

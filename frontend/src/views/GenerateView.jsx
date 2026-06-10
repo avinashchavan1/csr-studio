@@ -6,6 +6,9 @@ import * as engine from "../lib/engine.js";
 import * as api from "../lib/api.js";
 
 function strengthFor(keyType, size) {
+  if (keyType === "ed25519") {
+    return { lvl: 4, label: "Very strong", note: "Ed25519 · modern EdDSA, fast & compact" };
+  }
   if (keyType === "ecdsa") {
     if (size === "P-521") return { lvl: 4, label: "Very strong", note: "ECDSA P-521 · ~256-bit security" };
     return size === "P-384"
@@ -113,7 +116,9 @@ export function GenerateView({ seed, onGenerated, push }) {
   useEffect(() => () => clearInterval(timerRef.current), []);
 
   const set = (k, v) => setF(p => ({ ...p, [k]: v }));
-  const setKeyType = (kt) => setF(p => ({ ...p, keyType: kt, size: kt === "ecdsa" ? "P-256" : "2048" }));
+  const setKeyType = (kt) => setF(p => ({
+    ...p, keyType: kt, size: kt === "ecdsa" ? "P-256" : kt === "rsa" ? "2048" : ""
+  }));
 
   const addSan = () => {
     const raw = sanInput.trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
@@ -275,23 +280,32 @@ export function GenerateView({ seed, onGenerated, push }) {
           <div className="card-body fgroup">
             <Field label="Key algorithm">
               <Segmented value={f.keyType} onChange={setKeyType}
-                options={[{ value: "rsa", label: "RSA" }, { value: "ecdsa", label: "ECDSA (Elliptic Curve)" }]} />
+                options={[{ value: "rsa", label: "RSA" }, { value: "ecdsa", label: "ECDSA" }, { value: "ed25519", label: "Ed25519" }]} />
             </Field>
-            <div className="frow">
-              <Field label={f.keyType === "ecdsa" ? "Curve" : "Key size"}>
-                <Select value={f.size} onChange={v => set("size", v)} options={KEY_PRESETS[f.keyType]} />
-              </Field>
-              <Field label="Signature hash"><Select value={f.hash} onChange={v => set("hash", v)} options={HASHES} /></Field>
-            </div>
-            <Field label="Private key format"
-              hint={f.keyType === "ecdsa"
-                ? "Elliptic-curve keys are always emitted as PKCS#8 (“BEGIN PRIVATE KEY”)."
-                : "PKCS#8 is the modern default. PKCS#1 is the traditional “BEGIN RSA PRIVATE KEY” format some older servers expect."}>
-              {f.keyType === "ecdsa"
-                ? <div className="seg" style={{ opacity: .6, pointerEvents: "none" }}><button className="on">PKCS#8</button></div>
-                : <Segmented value={f.keyFormat} onChange={v => set("keyFormat", v)}
-                    options={[{ value: "pkcs8", label: "PKCS#8" }, { value: "pkcs1", label: "PKCS#1 (traditional)" }]} />}
-            </Field>
+            {f.keyType === "ed25519" ? (
+              <div className="warn-strip" style={{ background: "var(--accent-soft)", borderColor: "color-mix(in srgb, var(--accent) 24%, transparent)" }}>
+                <Icon name="info" style={{ color: "var(--accent)" }} />
+                <span>Ed25519 uses a fixed curve and the <b>EdDSA</b> signature scheme — no key size or hash to choose. Key is emitted as PKCS#8.</span>
+              </div>
+            ) : (
+              <>
+                <div className="frow">
+                  <Field label={f.keyType === "ecdsa" ? "Curve" : "Key size"}>
+                    <Select value={f.size} onChange={v => set("size", v)} options={KEY_PRESETS[f.keyType]} />
+                  </Field>
+                  <Field label="Signature hash"><Select value={f.hash} onChange={v => set("hash", v)} options={HASHES} /></Field>
+                </div>
+                <Field label="Private key format"
+                  hint={f.keyType === "ecdsa"
+                    ? "Elliptic-curve keys are always emitted as PKCS#8 (“BEGIN PRIVATE KEY”)."
+                    : "PKCS#8 is the modern default. PKCS#1 is the traditional “BEGIN RSA PRIVATE KEY” format some older servers expect."}>
+                  {f.keyType === "ecdsa"
+                    ? <div className="seg" style={{ opacity: .6, pointerEvents: "none" }}><button className="on">PKCS#8</button></div>
+                    : <Segmented value={f.keyFormat} onChange={v => set("keyFormat", v)}
+                        options={[{ value: "pkcs8", label: "PKCS#8" }, { value: "pkcs1", label: "PKCS#1 (traditional)" }]} />}
+                </Field>
+              </>
+            )}
             <Field label="Certificate usage" optional
               hint="X.509 extensions requested in the CSR. Public CAs usually set these themselves; handy for internal CAs that honour them.">
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

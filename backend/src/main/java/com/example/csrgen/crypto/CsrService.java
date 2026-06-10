@@ -113,12 +113,15 @@ public class CsrService {
 
     private X500Name buildSubject(SubjectDto s) {
         X500NameBuilder b = new X500NameBuilder(BCStyle.INSTANCE);
-        b.addRDN(BCStyle.CN, s.commonName());
+        addIfPresent(b, BCStyle.CN, s.commonName());   // optional — SAN-only CSRs are valid
         addIfPresent(b, BCStyle.O, s.organization());
         addIfPresent(b, BCStyle.OU, s.organizationalUnit());
         addIfPresent(b, BCStyle.L, s.locality());
         addIfPresent(b, BCStyle.ST, s.state());
-        addIfPresent(b, BCStyle.C, s.country());
+        // X.520 countryName must be an uppercase 2-letter ISO 3166 code.
+        if (StringUtils.hasText(s.country())) {
+            b.addRDN(BCStyle.C, s.country().trim().toUpperCase());
+        }
         addIfPresent(b, BCStyle.EmailAddress, s.email());
         return b.build();
     }

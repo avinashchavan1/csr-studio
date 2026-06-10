@@ -5,7 +5,9 @@
 **Method:** black-box against prod — `curl` + `openssl` cryptographic verification, content review of the live bundle, negative/abuse testing.
 
 ## Verdict
-Core crypto is **correct and interoperable** (every generated CSR verifies in openssl; external CSRs decode; signatures valid). But there are **2 high** and **8 medium** issues spanning a misleading security claim, a decode bug, missing auth/rate-limiting, weak input validation, and error handling that leaks internals. None block basic use; several matter for a "production-grade PKI tool."
+Core crypto is **correct and interoperable** (every generated CSR verifies in openssl; external CSRs decode; signatures valid).
+
+**UPDATE 2026-06-10 — all 17 findings resolved (CP1–CP4 deployed + prod-verified).** 2 High + 8 Medium + 7 Low closed; test count 35 → 58. Only deliberately-deferred item: full JWT/OAuth auth (history remains shared/anonymous behind a row cap + confirm-guarded clear + rate limiting). See per-checkpoint ✅ notes below.
 
 ---
 
@@ -76,12 +78,12 @@ Core crypto is **correct and interoperable** (every generated CSR verifies in op
 
 > Residual: under extreme concurrent load the DB pool (5, Supabase free) can exhaust → 500s; the rate limit keeps normal traffic well clear. Revisit pool/queueing if real load grows.
 
-### QA-CP4 — PKI completeness & polish
-10. **L-1/L-2** Validate stored `csrPem`; dedup/cap SANs server-side.
-11. **L-3** Align curve support FE↔BE (add P-521 to UI + strength meter, or reject it in API).
-12. **L-4/L-5** Wildcard leftmost-label validation; move email to SAN `rfc822Name` (or document DN placement).
-13. **L-6** Optional: expose keyUsage / EKU / basicConstraints in generate.
-14. **L-7/L-8** Friendlier sig-alg display + validation messages.
+### QA-CP4 — PKI completeness & polish ✅ DONE (deployed + prod-verified 2026-06-10)
+10. **L-1/L-2 ✅** History rejects non-CSR `csrPem`; SANs deduped + capped at 100 (101 → 400).
+11. **L-3 ✅** P-521 added to UI + strength meter (backend already supported); verifies in openssl.
+12. **L-4/L-5 ✅** Wildcard enforced leftmost-label-only (`a.*.com` → 400, `*.example.com` → 200); subject email now also emitted as SAN `rfc822Name`.
+13. **L-6 ✅** keyUsage + extendedKeyUsage requestable (UI chips); openssl confirms `X509v3 Key Usage (critical)` + `Extended Key Usage` in the CSR.
+14. **L-7/L-8 ✅** Decode shows `SHA256withRSA`; friendlier validation messages.
 
 ---
 
