@@ -163,7 +163,9 @@ function normDecode(r) {
     keyDetail: (r.key && r.key.detail) || "",
     verified: r.signature ? !!r.signature.valid : null,
     sigAlg: (r.signature && r.signature.algorithm) || "",
-    extensions: r.extensions || null
+    extensions: r.extensions || null,
+    keySha256: (r.key && r.key.sha256) || null,
+    keyPin: (r.key && r.key.pin) || null
   };
 }
 
@@ -228,6 +230,26 @@ export async function selfSigned(opts, days = 365) {
 export async function decode(pem) {
   if (mode() === "demo") { await sleep(Math.min(config.demoLatencyMs, 450)); return engine.decode(pem); }
   return normDecode((await request("/csr/decode", { body: { csr: pem }, retries: config.retries })).data);
+}
+/** Baseline compliance lint (server-side). Returns { valid, errors[], warnings[] } or null in demo. */
+export async function lint(pem) {
+  if (mode() === "demo") return null;
+  try { return (await request("/v1/csr/validate", { body: { pem }, retries: config.retries })).data; }
+  catch (e) { return null; }
+}
+/** Bundle a cert + key into a PKCS#12 (.p12). Returns a Blob. */
+export async function pkcs12({ certificatePem, privateKeyPem, password, alias }) {
+  if (mode() === "demo") throw new ApiError("PKCS#12 bundling requires a connected backend.");
+  const res = await withTimeout(config.baseUrl + "/v1/convert/pkcs12", {
+    method: "POST", headers: headers(), credentials: creds(),
+    body: JSON.stringify({ certificatePem, privateKeyPem, password, alias: alias || "1" })
+  });
+  if (!res.ok) {
+    let err = {};
+    try { err = (await res.json()).error || {}; } catch (e) {}
+    throw new ApiError(err.message || ("PKCS#12 bundling failed (" + res.status + ")"));
+  }
+  return await res.blob();
 }
 export async function match(pem, keyPem) {
   if (mode() === "demo") { await sleep(Math.min(config.demoLatencyMs, 450)); return engine.keyMatch(pem, keyPem); }
@@ -339,5 +361,5 @@ export const SAMPLES = {
   }
 };
 
-const CSRApi = { generate, selfSigned, decode, match, getConfig, setConfig, mode, host, testConnection, generateRequest, historyList, historySave, historyDelete, historyClear, ApiError, SAMPLES, DEFAULTS };
+const CSRApi = { generate, selfSigned, decode, lint, pkcs12, match, getConfig, setConfig, mode, host, testConnection, generateRequest, historyList, historySave, historyDelete, historyClear, ApiError, SAMPLES, DEFAULTS };
 export default CSRApi;

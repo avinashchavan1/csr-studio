@@ -40,7 +40,7 @@ class ValidationServiceTest {
                 "CN=", Map.of(), List.of(), "RSA", 1024, "SHA256WITHRSA", true);
         ValidationResult r = v.validateParsed(parsed);
         assertThat(r.valid()).isFalse();
-        assertThat(r.errors()).anyMatch(e -> e.contains("commonName"));
+        assertThat(r.errors()).anyMatch(e -> e.contains("No Common Name"));
         assertThat(r.errors()).anyMatch(e -> e.contains("too small"));
     }
 

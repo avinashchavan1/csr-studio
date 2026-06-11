@@ -109,6 +109,7 @@ export function GenerateView({ seed, onGenerated, push }) {
   const [progress, setProgress] = useState(null);
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState(null);
+  const [p12pass, setP12pass] = useState("");
   const resultRef = useRef(null);
   const timerRef = useRef(null);
 
@@ -223,7 +224,19 @@ export function GenerateView({ seed, onGenerated, push }) {
     }
   }
 
-  function reset() { setF(emptyForm()); setResult(null); setErrors({}); }
+  async function downloadP12() {
+    if (!p12pass) { push("Set an export password for the .p12 bundle.", "err"); return; }
+    try {
+      const blob = await api.pkcs12({ certificatePem: result.certPem, privateKeyPem: result.keyPem, password: p12pass, alias: safeName(f.cn) });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = safeName(f.cn) + ".p12";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      push("PKCS#12 (.p12) downloaded");
+    } catch (e) { push(e.message || "PKCS#12 bundling failed", "err"); }
+  }
+
+  function reset() { setF(emptyForm()); setResult(null); setErrors({}); setP12pass(""); }
 
   const doCopy = (text, what) => copyText(text).then(() => push(what + " copied")).catch(() => push("Copy failed", "err"));
   const fileBase = safeName(f.cn);
@@ -439,6 +452,20 @@ export function GenerateView({ seed, onGenerated, push }) {
                 <CodeBlock title={fileBase + ".crt — self-signed certificate"} value={result.certPem}
                   onCopy={() => doCopy(result.certPem, "Certificate")}
                   onDownload={() => { download(fileBase + ".crt", result.certPem); push("Certificate downloaded"); }} />
+
+                <div className="card">
+                  <div className="card-head"><span className="ico"><Icon name="lock" /></span><h3>PKCS#12 bundle (.p12)</h3>
+                    <span className="card-num">cert + key</span>
+                  </div>
+                  <div className="card-body" style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+                    <div style={{ flex: 1, minWidth: 200 }}>
+                      <Field label="Export password" hint="Protects the .p12; you'll enter it when importing into a server or keystore.">
+                        <TextInput type="password" value={p12pass} onChange={setP12pass} placeholder="choose a password" />
+                      </Field>
+                    </div>
+                    <Button variant="primary" icon="download" onClick={downloadP12}>Download .p12</Button>
+                  </div>
+                </div>
               </>
             )}
 

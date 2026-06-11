@@ -57,8 +57,12 @@ public class ValidationService {
         if (!csr.signatureValid()) {
             errors.add("CSR signature is invalid");
         }
-        if (!csr.subjectFields().containsKey("commonName")) {
-            errors.add("Subject is missing commonName (CN)");
+        boolean hasCn = csr.subjectFields().containsKey("commonName");
+        boolean hasSanEarly = csr.subjectAltNames() != null && !csr.subjectAltNames().isEmpty();
+        if (!hasCn && !hasSanEarly) {
+            errors.add("No Common Name and no Subject Alternative Names");
+        } else if (!hasCn) {
+            warnings.add("No Common Name (CN) — acceptable for modern SAN-only certificates");
         }
 
         String sig = csr.signatureAlgorithm() != null ? csr.signatureAlgorithm().toUpperCase() : "";

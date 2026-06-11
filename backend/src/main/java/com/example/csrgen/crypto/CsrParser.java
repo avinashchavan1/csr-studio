@@ -151,6 +151,27 @@ public class CsrParser {
                 : "CA:TRUE";
     }
 
+    /** SHA-256 fingerprint of the SubjectPublicKeyInfo (DER) — hex + base64 SPKI pin. */
+    public record Fingerprint(String sha256, String pin) {
+    }
+
+    public Fingerprint publicKeyFingerprint(PKCS10CertificationRequest csr) {
+        try {
+            byte[] spki = csr.getSubjectPublicKeyInfo().getEncoded();
+            byte[] h = java.security.MessageDigest.getInstance("SHA-256").digest(spki);
+            StringBuilder hex = new StringBuilder();
+            for (byte b : h) {
+                if (hex.length() > 0) {
+                    hex.append(':');
+                }
+                hex.append(String.format("%02X", b));
+            }
+            return new Fingerprint(hex.toString(), java.util.Base64.getEncoder().encodeToString(h));
+        } catch (Exception e) {
+            return new Fingerprint(null, null);
+        }
+    }
+
     public boolean verifySignature(PKCS10CertificationRequest csr, SubjectPublicKeyInfo spki) {
         try {
             return csr.isSignatureValid(new JcaContentVerifierProviderBuilder()
