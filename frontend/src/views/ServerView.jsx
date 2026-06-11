@@ -32,11 +32,6 @@ export function ServerView({ push, onConfigChange }) {
     onConfigChange && onConfigChange();
     push(next.baseUrl ? "Saved — connected to " + api.host() : "Saved — running in demo mode");
   }
-  function useDemo() {
-    const next = api.setConfig({ ...c, baseUrl: "" });
-    setC(next); setStatus(null); onConfigChange && onConfigChange();
-    push("Switched to demo mode");
-  }
   async function test() {
     setTesting(true); setStatus(null);
     api.setConfig(c); onConfigChange && onConfigChange();
@@ -74,8 +69,10 @@ export function ServerView({ push, onConfigChange }) {
           </span>
         </div>
         <div className="card-body fgroup">
-          <Field label="API base URL" hint="Your CSR service root. Every endpoint is relative to this (e.g. {base}/csr/generate).">
-            <TextInput mono value={c.baseUrl} onChange={v => set("baseUrl", v)} placeholder="https://your-backend.example.com/api" />
+          <Field label="API base URL" hint="Hardcoded into the app at build time — not editable. Every endpoint is relative to this (e.g. {base}/csr/generate).">
+            <div className="input mono" style={{ background: "var(--surface-3)", color: "var(--text-muted)", userSelect: "all", cursor: "default" }}>
+              {c.baseUrl}
+            </div>
           </Field>
         </div>
       </div>
@@ -171,7 +168,6 @@ export function ServerView({ push, onConfigChange }) {
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <Button variant="primary" icon="check" onClick={save}>Save settings</Button>
             <Button variant="ghost" icon="refresh" loading={testing} onClick={test}>Test connection</Button>
-            {mode === "connected" && <Button variant="ghost" icon="terminal" onClick={useDemo}>Use demo instead</Button>}
           </div>
           {status && (
             <div className="warn-strip" style={{
