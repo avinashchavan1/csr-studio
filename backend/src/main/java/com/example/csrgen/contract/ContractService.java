@@ -60,7 +60,8 @@ public class ContractService {
     public GenerateResponse generate(GenerateRequest req) {
         ContractKey key = req.key();
         validateAlgorithm(key.algorithm());
-        String type = algoType(key.algorithm());   // RSA | ECDSA | ED25519
+        String type = algoType(key.algorithm());   // RSA | ECDSA | ED25519 | PQC
+        boolean pqc = type.equals("PQC");
         boolean ed = type.equals("ED25519");
         boolean ecdsa = type.equals("ECDSA");
         boolean rsa = type.equals("RSA");
@@ -72,17 +73,20 @@ public class ContractService {
             throw new CryptoException("Provide a Common Name or at least one Subject Alternative Name.");
         }
 
+        // For PQC the signature algorithm IS the parameter-set name (e.g. "ML-DSA-65").
+        String pqcName = pqc ? canonicalPqcName(key.algorithm()) : null;
         boolean pss = rsa && Boolean.TRUE.equals(key.rsaPss());
-        String sigAlg = ed ? null
+        String sigAlg = pqc ? pqcName
+                : ed ? null
                 : ecdsa ? jcaSignatureAlgorithm(hash, true)
                 : pss ? jcaPssAlgorithm(hash)
                 : jcaSignatureAlgorithm(hash, false);
 
         GenerateRequest.Extensions ext = req.extensions();
         CsrRequest internal = new CsrRequest(
-                ed ? KeyAlgorithm.ED25519 : ecdsa ? KeyAlgorithm.EC : KeyAlgorithm.RSA,
+                pqc ? pqcEnum(key.algorithm()) : ed ? KeyAlgorithm.ED25519 : ecdsa ? KeyAlgorithm.EC : KeyAlgorithm.RSA,
                 rsa ? key.size() : null,
-                ecdsa ? key.curve() : null,
+                pqc ? pqcName : ecdsa ? key.curve() : null,   // ecCurve slot carries the PQC param set
                 toSubjectDto(req.subject()),
                 sans,
                 sigAlg,
@@ -94,7 +98,9 @@ public class ContractService {
         GeneratedCsr out = csrService.generateDetailed(internal, rsaPkcs1);
 
         GenerateResponse.Details details;
-        if (ed) {
+        if (pqc) {
+            details = new GenerateResponse.Details(pqcName, pqcFamily(pqcName), "PKCS#8", pqcName);
+        } else if (ed) {
             details = new GenerateResponse.Details("Ed25519", "Ed25519", "PKCS#8", "Ed25519");
         } else if (ecdsa) {
             details = new GenerateResponse.Details("ECDSA " + key.curve(), key.curve(), "PKCS#8", hash);
@@ -157,9 +163,23 @@ public class ContractService {
     private static final Pattern IPV4_RE = Pattern.compile(
             "^((25[0-5]|2[0-4]\\d|1?\\d?\\d)\\.){3}(25[0-5]|2[0-4]\\d|1?\\d?\\d)$");
 
-    /** RSA | ECDSA | ED25519 from the contract algorithm string. */
+    /** Post-quantum parameter sets we expose, keyed by upper-case name → canonical BC name. */
+    private static final Map<String, String> PQC_CANON = Map.ofEntries(
+            Map.entry("ML-DSA-44", "ML-DSA-44"),
+            Map.entry("ML-DSA-65", "ML-DSA-65"),
+            Map.entry("ML-DSA-87", "ML-DSA-87"),
+            Map.entry("SLH-DSA-SHA2-128S", "SLH-DSA-SHA2-128S"),
+            Map.entry("SLH-DSA-SHA2-192S", "SLH-DSA-SHA2-192S"),
+            Map.entry("SLH-DSA-SHA2-256S", "SLH-DSA-SHA2-256S"),
+            Map.entry("FALCON-512", "Falcon-512"),
+            Map.entry("FALCON-1024", "Falcon-1024"));
+
+    /** RSA | ECDSA | ED25519 | PQC from the contract algorithm string. */
     private String algoType(String algorithm) {
         String a = nz(algorithm).toUpperCase();
+        if (PQC_CANON.containsKey(a)) {
+            return "PQC";
+        }
         if (a.equals("ED25519") || a.equals("EDDSA")) {
             return "ED25519";
         }
@@ -169,12 +189,42 @@ public class ContractService {
         return "RSA";
     }
 
+    private String canonicalPqcName(String algorithm) {
+        return PQC_CANON.get(nz(algorithm).toUpperCase());
+    }
+
+    private KeyAlgorithm pqcEnum(String algorithm) {
+        String a = nz(algorithm).toUpperCase();
+        if (a.startsWith("ML-DSA")) {
+            return KeyAlgorithm.ML_DSA;
+        }
+        if (a.startsWith("SLH-DSA")) {
+            return KeyAlgorithm.SLH_DSA;
+        }
+        return KeyAlgorithm.FALCON;
+    }
+
+    private String pqcFamily(String name) {
+        String a = nz(name).toUpperCase();
+        if (a.startsWith("ML-DSA")) {
+            return "ML-DSA · FIPS 204 (post-quantum)";
+        }
+        if (a.startsWith("SLH-DSA")) {
+            return "SLH-DSA · FIPS 205 (post-quantum)";
+        }
+        return "Falcon (post-quantum)";
+    }
+
     /** Rejects unknown key algorithms instead of silently falling back to RSA. */
     private void validateAlgorithm(String algorithm) {
         String a = nz(algorithm).toUpperCase();
+        if (PQC_CANON.containsKey(a)) {
+            return;
+        }
         if (!a.equals("RSA") && !a.equals("ECDSA") && !a.equals("EC")
                 && !a.equals("ED25519") && !a.equals("EDDSA")) {
-            throw new CryptoException("Unsupported key algorithm: '" + algorithm + "'. Use RSA, ECDSA or Ed25519.");
+            throw new CryptoException("Unsupported key algorithm: '" + algorithm
+                    + "'. Use RSA, ECDSA, Ed25519, or a PQC algorithm (ML-DSA / SLH-DSA / Falcon).");
         }
     }
 
@@ -279,7 +329,11 @@ public class ContractService {
     }
 
     private String keyKind(String algo) {
-        return switch (nz(algo).toUpperCase()) {
+        String u = nz(algo).toUpperCase();
+        if (u.startsWith("ML-DSA") || u.startsWith("SLH-DSA") || u.startsWith("FALCON")) {
+            return algo;   // PQC — report the parameter-set name directly
+        }
+        return switch (u) {
             case "EC", "ECDSA" -> "ECDSA";
             case "ED25519" -> "Ed25519";
             default -> "RSA";
@@ -287,6 +341,10 @@ public class ContractService {
     }
 
     private String keyDetail(String algo, Integer keySize) {
+        String u0 = nz(algo).toUpperCase();
+        if (u0.startsWith("ML-DSA") || u0.startsWith("SLH-DSA") || u0.startsWith("FALCON")) {
+            return pqcFamily(algo);
+        }
         if (keySize == null) {
             return "";
         }

@@ -124,11 +124,13 @@ function generateRequest(o) {
       locality: s.L || "", state: s.ST || "", country: s.C || "", email: s.email || ""
     },
     subjectAltNames: (o.sans || []).map(x => ({ type: x.type, value: x.value })),
-    key: o.keyType === "ed25519"
-      ? { algorithm: "Ed25519", format: "PKCS#8" }
-      : o.keyType === "ecdsa"
-        ? { algorithm: "ECDSA", curve: o.size, format: "PKCS#8" }
-        : { algorithm: "RSA", size: parseInt(o.size, 10), format: o.keyFormat === "pkcs1" ? "PKCS#1" : "PKCS#8", ...(o.rsaPss ? { rsaPss: true } : {}) },
+    key: o.keyType === "pqc"
+      ? { algorithm: o.pqcAlgo }
+      : o.keyType === "ed25519"
+        ? { algorithm: "Ed25519", format: "PKCS#8" }
+        : o.keyType === "ecdsa"
+          ? { algorithm: "ECDSA", curve: o.size, format: "PKCS#8" }
+          : { algorithm: "RSA", size: parseInt(o.size, 10), format: o.keyFormat === "pkcs1" ? "PKCS#1" : "PKCS#8", ...(o.rsaPss ? { rsaPss: true } : {}) },
     signatureHash: o.hash || "SHA-256",
     ...buildExtensions(o)
   };
