@@ -175,8 +175,8 @@ export function GenerateView({ seed, onGenerated, push }) {
 
   function validate() {
     const e = {};
-    if (!f.cn.trim()) e.cn = "Common Name is required (the primary domain).";
-    else if (!isValidDomain(f.cn.trim())) e.cn = "That doesn't look like a valid hostname.";
+    if (f.cn.trim() && !isValidDomain(f.cn.trim())) e.cn = "That doesn't look like a valid hostname.";
+    else if (!f.cn.trim() && f.sans.length === 0) e.cn = "Enter a Common Name, or add at least one SAN below.";
     if (f.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email.trim())) e.email = "Enter a valid email address.";
     if (f.C && f.C.length !== 2) e.C = "Country must be a 2-letter code.";
     setErrors(e);
@@ -274,7 +274,7 @@ export function GenerateView({ seed, onGenerated, push }) {
             <span className="card-num">01</span>
           </div>
           <div className="card-body fgroup">
-            <Field label={<span>Common Name (CN) <span className="req">*</span></span>} hint="The fully-qualified domain this certificate secures." error={errors.cn}>
+            <Field label="Common Name (CN)" optional hint="The primary domain. Optional — modern certs can be SAN-only (just add a SAN below)." error={errors.cn}>
               <TextInput mono value={f.cn} onChange={v => set("cn", v)} error={errors.cn} placeholder="example.com" onBlur={validate} />
             </Field>
 
@@ -430,7 +430,7 @@ export function GenerateView({ seed, onGenerated, push }) {
           <div className="result-empty">
             <span className="big"><Icon name="cert" /></span>
             <h4>Your CSR will appear here</h4>
-            <p>Fill in at least a Common Name, then generate. {api.mode() === "demo" ? "Running the in-browser demo until your backend is connected." : "Your backend signs the request and returns it here."}</p>
+            <p>Add a Common Name or at least one SAN, then generate. Your backend signs the request and returns it here.</p>
           </div>
         )}
 
