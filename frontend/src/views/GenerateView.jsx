@@ -1,11 +1,14 @@
 /* CSR generation form + output (ported from design views-generate.jsx) */
 import React, { useState, useEffect, useRef } from "react";
 import { Icon, Field, TextInput, Select, Segmented, Button, CodeBlock, Pill } from "../components/ui.jsx";
-import { COUNTRIES, KEY_PRESETS, HASHES, PRESETS, classifySAN, isValidDomain, copyText, download, safeName } from "../lib/data.js";
+import { COUNTRIES, KEY_PRESETS, HASHES, PRESETS, PQC_ALGOS, classifySAN, isValidDomain, copyText, download, safeName } from "../lib/data.js";
 import * as engine from "../lib/engine.js";
 import * as api from "../lib/api.js";
 
 function strengthFor(keyType, size) {
+  if (keyType === "pqc") {
+    return { lvl: 4, label: "Post-quantum", note: (size || "") + " · resistant to quantum attacks" };
+  }
   if (keyType === "ed25519") {
     return { lvl: 4, label: "Very strong", note: "Ed25519 · modern EdDSA, fast & compact" };
   }
@@ -25,7 +28,8 @@ export function emptyForm() {
   return {
     cn: "", sans: [], O: "", OU: "", L: "", ST: "", C: "US", email: "",
     keyType: "rsa", size: "2048", hash: "SHA-256", keyFormat: "pkcs8",
-    eku: [], ku: [], bcCa: false, bcPathLen: "", sanType: "AUTO", rsaPss: false
+    eku: [], ku: [], bcCa: false, bcPathLen: "", sanType: "AUTO", rsaPss: false,
+    pqcAlgo: "ML-DSA-65"
   };
 }
 
@@ -102,7 +106,7 @@ function ProgressStepper({ progress, elapsed, form }) {
 }
 
 export function GenerateView({ seed, onGenerated, push }) {
-  const [f, setF] = useState(() => seed || emptyForm());
+  const [f, setF] = useState(() => seed ? { ...emptyForm(), ...seed } : emptyForm());
   const [sanInput, setSanInput] = useState("");
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
@@ -113,13 +117,14 @@ export function GenerateView({ seed, onGenerated, push }) {
   const resultRef = useRef(null);
   const timerRef = useRef(null);
 
-  useEffect(() => { if (seed) { setF(seed); setResult(null); } }, [seed]);
+  useEffect(() => { if (seed) { setF({ ...emptyForm(), ...seed }); setResult(null); } }, [seed]);
   useEffect(() => () => clearInterval(timerRef.current), []);
 
   const set = (k, v) => setF(p => ({ ...p, [k]: v }));
   const setKeyType = (kt) => setF(p => ({
     ...p, keyType: kt, size: kt === "ecdsa" ? "P-256" : kt === "rsa" ? "2048" : ""
   }));
+  const strengthSize = f.keyType === "pqc" ? f.pqcAlgo : f.size;
 
   const addSan = () => {
     let raw = sanInput.trim();
@@ -159,14 +164,14 @@ export function GenerateView({ seed, onGenerated, push }) {
     sans: allSans.map(s => ({ type: s.type, value: s.value })),
     keyType: f.keyType, size: f.size, hash: f.hash, keyFormat: f.keyFormat,
     keyUsage: f.ku, eku: f.eku,
-    bcCa: f.bcCa, bcPathLen: f.bcPathLen, rsaPss: f.rsaPss
+    bcCa: f.bcCa, bcPathLen: f.bcPathLen, rsaPss: f.rsaPss, pqcAlgo: f.pqcAlgo
   });
 
   const toggle = (field, val) =>
     set(field, f[field].includes(val) ? f[field].filter(x => x !== val) : [...f[field], val]);
 
   const cmd = engine.opensslCommand(opts());
-  const strength = strengthFor(f.keyType, f.size);
+  const strength = strengthFor(f.keyType, strengthSize);
 
   function validate() {
     const e = {};
@@ -322,9 +327,14 @@ export function GenerateView({ seed, onGenerated, push }) {
           <div className="card-body fgroup">
             <Field label="Key algorithm">
               <Segmented value={f.keyType} onChange={setKeyType}
-                options={[{ value: "rsa", label: "RSA" }, { value: "ecdsa", label: "ECDSA" }, { value: "ed25519", label: "Ed25519" }]} />
+                options={[{ value: "rsa", label: "RSA" }, { value: "ecdsa", label: "ECDSA" }, { value: "ed25519", label: "Ed25519" }, { value: "pqc", label: "PQC" }]} />
             </Field>
-            {f.keyType === "ed25519" ? (
+            {f.keyType === "pqc" ? (
+              <Field label="Post-quantum algorithm"
+                hint="NIST post-quantum signature scheme. Keys are PKCS#8; the scheme fixes the hash, so there's nothing else to choose.">
+                <Select value={f.pqcAlgo} onChange={v => set("pqcAlgo", v)} options={PQC_ALGOS} />
+              </Field>
+            ) : f.keyType === "ed25519" ? (
               <div className="warn-strip" style={{ background: "var(--accent-soft)", borderColor: "color-mix(in srgb, var(--accent) 24%, transparent)" }}>
                 <Icon name="info" style={{ color: "var(--accent)" }} />
                 <span>Ed25519 uses a fixed curve and the <b>EdDSA</b> signature scheme — no key size or hash to choose. Key is emitted as PKCS#8.</span>

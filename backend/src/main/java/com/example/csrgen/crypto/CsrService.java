@@ -228,6 +228,9 @@ public class CsrService {
             case RSA -> "SHA256withRSA";
             case EC -> "SHA256withECDSA";
             case ED25519 -> "Ed25519";
+            // PQC always carries an explicit signatureAlgorithm (the parameter-set name).
+            case ML_DSA, SLH_DSA, FALCON ->
+                    throw new CryptoException("Post-quantum signature algorithm must be specified explicitly.");
         };
     }
 }

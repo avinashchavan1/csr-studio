@@ -60,6 +60,7 @@ export default function App() {
       ST: it.subject.ST || "", C: it.subject.C || "US", email: it.subject.email || "",
       keyType: it.keyType || (it.keyKind === "ECDSA" ? "ecdsa" : "rsa"),
       size: it.size || (it.keyKind === "ECDSA" ? "P-256" : "2048"),
+      pqcAlgo: it.keyType === "pqc" ? (it.keyLabel || "ML-DSA-65") : "ML-DSA-65",
       hash: it.hash || it.sigAlg || "SHA-256",
       keyFormat: it.keyFormat === "PKCS#1" ? "pkcs1" : "pkcs8",
       _ts: Date.now()

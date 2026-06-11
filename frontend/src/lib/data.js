@@ -29,6 +29,18 @@ export const KEY_PRESETS = {
   ]
 };
 
+// Post-quantum signature algorithms (NIST PQC). Value = backend algorithm name.
+export const PQC_ALGOS = [
+  { value: "ML-DSA-44", label: "ML-DSA-44", note: "FIPS 204 · NIST level 2" },
+  { value: "ML-DSA-65", label: "ML-DSA-65", note: "FIPS 204 · NIST level 3 · recommended" },
+  { value: "ML-DSA-87", label: "ML-DSA-87", note: "FIPS 204 · NIST level 5" },
+  { value: "SLH-DSA-SHA2-128S", label: "SLH-DSA-SHA2-128s", note: "FIPS 205 · hash-based" },
+  { value: "SLH-DSA-SHA2-192S", label: "SLH-DSA-SHA2-192s", note: "FIPS 205 · hash-based" },
+  { value: "SLH-DSA-SHA2-256S", label: "SLH-DSA-SHA2-256s", note: "FIPS 205 · hash-based (slow)" },
+  { value: "Falcon-512", label: "Falcon-512", note: "FN-DSA · compact signatures" },
+  { value: "Falcon-1024", label: "Falcon-1024", note: "FN-DSA · compact signatures" }
+];
+
 export const HASHES = [
   { value: "SHA-256", label: "SHA-256" },
   { value: "SHA-384", label: "SHA-384" },
