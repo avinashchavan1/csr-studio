@@ -25,6 +25,14 @@ Audit of fields/capabilities vs PKI best practice, with phased implementation.
 - F6 Self-signed certificate from the CSR (test certs).
 - F7 RSA-PSS signatures; PKCS#12 bundle in the UI.
 
+### Phase 5 — Post-Quantum Cryptography (PQC) ✅ DONE (deployed + prod-verified)
+- BC 1.78.1 → 1.80. Added **ML-DSA** (FIPS 204: 44/65/87), **SLH-DSA** (FIPS 205: SHA2-128/192/256s),
+  **Falcon** (512/1024) — keygen + CSR signing + decode + self-signed cert.
+- UI: "PQC" key type + algorithm picker; PQC-aware openssl command + strength meter.
+- QA on prod: ML-DSA & SLH-DSA CSRs **verify in openssl 3.6** (`verify OK`); Falcon validates via BC
+  (openssl lacks the OID); ML-DSA-65 self-signed cert `Signature Algorithm: ML-DSA-65`; unknown param → 400.
+  77 backend tests (10 PQC). UI generate → history confirmed live.
+
 ## Status
 - [x] Phase 1 (Ed25519 key type; decode shows keyUsage/EKU/basicConstraints; country uppercased; SAN-only CSR allowed — 63 tests)
 - [x] Phase 2 (F4 basicConstraints CA:true/pathlen requestable + decoded; F5 explicit SAN type picker DNS/IP/email/URI)
