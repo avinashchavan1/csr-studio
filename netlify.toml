@@ -6,6 +6,10 @@
   command = "npm run build"
   publish = "frontend/dist"
 
+# Backend URL is hardcoded here and baked into the bundle at build time.
+[build.environment]
+  VITE_API_URL = "https://csr-studio-api.onrender.com/api"
+
 # SPA fallback — all routes serve index.html.
 [[redirects]]
   from = "/*"
