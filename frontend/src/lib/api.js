@@ -8,9 +8,12 @@
 import * as engine from "./engine.js";
 
 const CKEY = "csrgen.api.v2";
-// Prod: set VITE_API_URL=https://<app>-api.onrender.com/api on Netlify.
-// Local: backend runs under the /api context-path.
-const DEFAULT_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080/api";
+// Backend URL is hardcoded in the app — production builds always hit the prod
+// backend; local dev hits localhost. VITE_API_URL can still override for testing.
+const DEFAULT_BASE = import.meta.env.VITE_API_URL
+  || (import.meta.env.PROD
+    ? "https://csr-studio-api.onrender.com/api"
+    : "http://localhost:8080/api");
 export const DEFAULTS = {
   baseUrl: DEFAULT_BASE,
   authMode: "none",          // "cookie" | "bearer" | "none"
