@@ -25,6 +25,8 @@ export const DEFAULTS = {
 };
 let config = { ...DEFAULTS };
 try { Object.assign(config, JSON.parse(localStorage.getItem(CKEY) || "{}")); } catch (e) {}
+// The backend URL is hardcoded at build time (VITE_API_URL) and is NOT user-editable.
+config.baseUrl = DEFAULT_BASE;
 
 const clamp = (n, lo, hi, d) => { n = Number(n); return isFinite(n) ? Math.max(lo, Math.min(hi, n)) : d; };
 
@@ -32,7 +34,7 @@ export function getConfig() { return { ...config }; }
 export function setConfig(next) {
   const c = { ...config, ...next };
   config = {
-    baseUrl: (c.baseUrl || "").trim().replace(/\/+$/, ""),
+    baseUrl: DEFAULT_BASE,   // fixed — ignore any attempt to change it
     authMode: ["cookie", "bearer", "none"].includes(c.authMode) ? c.authMode : "none",
     token: (c.token || "").trim(),
     csrfHeader: (c.csrfHeader || "X-CSRF-Token").trim(),

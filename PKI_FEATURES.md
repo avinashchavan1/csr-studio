@@ -28,5 +28,5 @@ Audit of fields/capabilities vs PKI best practice, with phased implementation.
 ## Status
 - [x] Phase 1 (Ed25519 key type; decode shows keyUsage/EKU/basicConstraints; country uppercased; SAN-only CSR allowed — 63 tests)
 - [x] Phase 2 (F4 basicConstraints CA:true/pathlen requestable + decoded; F5 explicit SAN type picker DNS/IP/email/URI)
-- [x] Phase 3 (F6 self-signed test cert from CSR; F7 RSA-PSS signatures) — 66 tests
-  - Note: PKCS#12-in-UI deferred (the `/api/v1/convert/pkcs12` endpoint already exists for programmatic use).
+- [x] Phase 3 (F6 self-signed test cert from CSR; F7 RSA-PSS signatures)
+- [x] Phase 4 (G1 PKCS#12 .p12 download in UI; G2 compliance lint in Decode; G3 public-key SHA-256 fingerprint + SPKI pin) — 67 tests
