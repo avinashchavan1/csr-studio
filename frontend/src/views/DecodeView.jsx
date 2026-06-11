@@ -12,13 +12,14 @@ export function DecodeView({ push }) {
   const [showKey, setShowKey] = useState(false);
   const [decoded, setDecoded] = useState(null);
   const [match, setMatch] = useState(null);
+  const [lint, setLint] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
 
   async function run(input, keyInput) {
     const pem = (input != null ? input : text).trim();
     const kpem = (keyInput != null ? keyInput : keyText).trim();
-    setErr(""); setDecoded(null); setMatch(null);
+    setErr(""); setDecoded(null); setMatch(null); setLint(null);
     if (!pem) { setErr("Paste a CSR first."); return; }
     if (!/BEGIN CERTIFICATE REQUEST/.test(pem)) {
       setErr("This doesn't look like a CSR. It should start with “-----BEGIN CERTIFICATE REQUEST-----”."); return;
@@ -27,6 +28,7 @@ export function DecodeView({ push }) {
     try {
       const res = await api.decode(pem);
       setDecoded(res);
+      api.lint(pem).then(setLint).catch(() => {});
       if (kpem) {
         // Key match runs entirely in-browser (node-forge) — the private key is
         // NEVER sent to the server, so the "compared locally" promise holds.
@@ -109,6 +111,29 @@ export function DecodeView({ push }) {
         )}
         {decoded && (
           <div className="stack fade-in">
+            {lint && (
+              <div className="card" style={{ borderColor: lint.valid ? "color-mix(in srgb, var(--success) 35%, transparent)" : "color-mix(in srgb, var(--danger) 35%, transparent)" }}>
+                <div className="card-head">
+                  <span className="ico" style={{ color: lint.valid ? "var(--success)" : "var(--danger)" }}>
+                    <Icon name={lint.valid ? "check" : "alert"} />
+                  </span>
+                  <h3>Compliance check</h3>
+                  <span style={{ marginLeft: "auto" }}>
+                    {lint.valid
+                      ? <Pill kind="ok" icon="check">Passes</Pill>
+                      : <Pill kind="warn" icon="alert">{lint.errors.length} issue{lint.errors.length === 1 ? "" : "s"}</Pill>}
+                  </span>
+                </div>
+                <div className="card-body">
+                  {lint.errors && lint.errors.length > 0 &&
+                    <ul style={{ margin: "0 0 8px", paddingLeft: 18 }}>{lint.errors.map((e, i) => <li key={i} style={{ color: "var(--danger)", fontSize: 13 }}>{e}</li>)}</ul>}
+                  {lint.warnings && lint.warnings.length > 0 &&
+                    <ul style={{ margin: 0, paddingLeft: 18 }}>{lint.warnings.map((w, i) => <li key={i} style={{ color: "var(--warning)", fontSize: 13 }}>{w}</li>)}</ul>}
+                  {(!lint.errors || !lint.errors.length) && (!lint.warnings || !lint.warnings.length) &&
+                    <span className="muted" style={{ fontSize: 13 }}>No issues — meets the baseline checks.</span>}
+                </div>
+              </div>
+            )}
             {match && (
               <div className="card" style={{
                 borderColor: match.supported
@@ -154,6 +179,8 @@ export function DecodeView({ push }) {
                 <dl className="meta">
                   <dt>Public key</dt><dd>{decoded.keyKind} {decoded.keyDetail || ""}</dd>
                   <dt>Signature</dt><dd>{decoded.sigAlg || "—"}</dd>
+                  {decoded.keySha256 && <React.Fragment><dt>Key SHA-256</dt><dd style={{ fontSize: 11, wordBreak: "break-all" }}>{decoded.keySha256}</dd></React.Fragment>}
+                  {decoded.keyPin && <React.Fragment><dt>SPKI pin</dt><dd style={{ wordBreak: "break-all" }}>{decoded.keyPin}</dd></React.Fragment>}
                 </dl>
               </div>
             </div>

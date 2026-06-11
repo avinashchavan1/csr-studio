@@ -125,10 +125,11 @@ public class ContractService {
                         .map(s -> new ContractSan(s.type().name(), s.value()))
                         .toList();
 
+        CsrParser.Fingerprint fp = csrParser.publicKeyFingerprint(csrParser.decode(csrPem));
         DecodeResponse.Key key = new DecodeResponse.Key(
                 keyKind(parsed.keyAlgorithm()),
                 keyDetail(parsed.keyAlgorithm(), parsed.keySize()),
-                parsed.keySize());
+                parsed.keySize(), fp.sha256(), fp.pin());
 
         DecodeResponse.Signature sig = new DecodeResponse.Signature(
                 prettySig(parsed.signatureAlgorithm()), parsed.signatureValid());

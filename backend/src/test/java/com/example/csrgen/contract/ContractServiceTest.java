@@ -228,6 +228,16 @@ class ContractServiceTest {
     }
 
     @Test
+    void decodeIncludesPublicKeyFingerprint() {
+        GenerateResponse g = contract.generate(new GenerateRequest(subject("fp.example.com"),
+                List.of(new ContractSan("DNS", "fp.example.com")),
+                new ContractKey("RSA", 2048, null, "PKCS#8"), "SHA-256"));
+        DecodeResponse d = contract.decode(g.csr());
+        assertThat(d.key().sha256()).matches("([0-9A-F]{2}:){31}[0-9A-F]{2}");
+        assertThat(d.key().pin()).isNotBlank();
+    }
+
+    @Test
     void matchTrueForOwnKey() {
         GenerateResponse gen = contract.generate(new GenerateRequest(subject("m.com"), List.of(),
                 new ContractKey("RSA", 2048, null, "PKCS#8"), "SHA-256"));

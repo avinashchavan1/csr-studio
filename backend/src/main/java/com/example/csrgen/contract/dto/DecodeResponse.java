@@ -12,7 +12,7 @@ public record DecodeResponse(
         Signature signature,
         Extensions extensions
 ) {
-    public record Key(String kind, String detail, Integer bits) {
+    public record Key(String kind, String detail, Integer bits, String sha256, String pin) {
     }
 
     public record Signature(String algorithm, Boolean valid) {
