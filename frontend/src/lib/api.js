@@ -12,7 +12,7 @@ const CKEY = "csrgen.api.v2";
 // backend; local dev hits localhost. VITE_API_URL can still override for testing.
 const DEFAULT_BASE = import.meta.env.VITE_API_URL
   || (import.meta.env.PROD
-    ? "https://csr-studio-api.onrender.com/api"
+    ? "https://csr-studio-api-y7ca.onrender.com/api"
     : "http://localhost:8080/api");
 export const DEFAULTS = {
   baseUrl: DEFAULT_BASE,
