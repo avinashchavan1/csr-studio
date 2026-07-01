@@ -8,7 +8,7 @@
 
 # Backend URL is hardcoded here and baked into the bundle at build time.
 [build.environment]
-  VITE_API_URL = "https://csr-studio-api.onrender.com/api"
+  VITE_API_URL = "https://csr-studio-api-y7ca.onrender.com/api"
 
 # SPA fallback — all routes serve index.html.
 [[redirects]]

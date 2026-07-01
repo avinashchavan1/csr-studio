@@ -11,4 +11,4 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - run: curl -fsS --retry 2 --retry-delay 3 --max-time 75 https://csr-studio-api.onrender.com/api/health
+      - run: curl -fsS --retry 2 --retry-delay 3 --max-time 75 https://csr-studio-api-y7ca.onrender.com/api/health
