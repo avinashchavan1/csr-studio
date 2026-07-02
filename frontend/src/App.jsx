@@ -35,7 +35,16 @@ export default function App() {
   const refreshApi = () => setApiTick(x => x + 1);
   const apiMode = api.mode();
 
+  const [seedCsr, setSeedCsr] = useState(null);
   const reloadHistory = () => api.historyList().then(setHistory).catch(() => {});
+
+  // review share link: /?share=<id> → open the CSR read-only in Decode
+  useEffect(() => {
+    const id = new URLSearchParams(location.search).get("share");
+    if (!id) return;
+    setView("decode");
+    api.shareGet(id).then(d => setSeedCsr(d.csr)).catch(() => push("That review link wasn't found (it may have expired).", "err"));
+  }, []);
 
   // load history on mount and whenever the API config (demo/connected) changes
   useEffect(() => { let live = true; api.historyList().then(h => { if (live) setHistory(h); }).catch(() => {}); return () => { live = false; }; }, [apiTick]);
@@ -127,7 +136,7 @@ export default function App() {
 
         <div className={"content" + (view === "history" ? " narrow" : "")}>
           {view === "generate" && <GenerateView key={seed && seed._ts} seed={seed} onGenerated={onGenerated} push={push} />}
-          {view === "decode" && <DecodeView push={push} />}
+          {view === "decode" && <DecodeView push={push} seedCsr={seedCsr} />}
           {view === "history" && <HistoryView items={history} onDelete={deleteItem} onClear={clearAll} onRegenerate={regenerate} push={push} />}
           {view === "server" && <ServerView push={push} onConfigChange={refreshApi} />}
         </div>

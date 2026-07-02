@@ -42,7 +42,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
         // getRequestURI includes the /api context-path and is stable under MockMvc + prod.
         String p = req.getRequestURI();
-        return !(p.contains("/csr/generate") || p.contains("/csr/match") || p.contains("/csr/history"));
+        return !(p.contains("/csr/generate") || p.contains("/csr/match") || p.contains("/csr/history")
+                || p.contains("/csr/share") || p.contains("/csr/quantum-scan") || p.contains("/csr/hybrid"));
     }
 
     @Override

@@ -33,6 +33,15 @@ Audit of fields/capabilities vs PKI best practice, with phased implementation.
   (openssl lacks the OID); ML-DSA-65 self-signed cert `Signature Algorithm: ML-DSA-65`; unknown param → 400.
   77 backend tests (10 PQC). UI generate → history confirmed live.
 
+### Phase H — "post-quantum migration studio" (groundbreaking set)
+- **H1 — Hybrid CSR (classical + PQC).** One request → a matched *pair* of CSRs (same subject/SANs):
+  classical (RSA/ECDSA) for today's CAs + PQC (ML-DSA/…) for the migration. `POST /csr/hybrid`.
+  (True IETF composite signatures noted as experimental follow-up.)
+- **H2 — Quantum-readiness scanner.** Paste a CSR/cert or a domain → HNDL ("harvest now, decrypt
+  later") risk grade, algorithm breakdown, migration recommendation. `POST /csr/quantum-scan`.
+- **H3 — Review links + diff.** Shareable read-only decode links (`csr_studio_share` table) for
+  team approval; side-by-side CSR diff in the UI.
+
 ## Status
 - [x] Phase 1 (Ed25519 key type; decode shows keyUsage/EKU/basicConstraints; country uppercased; SAN-only CSR allowed — 63 tests)
 - [x] Phase 2 (F4 basicConstraints CA:true/pathlen requestable + decoded; F5 explicit SAN type picker DNS/IP/email/URI)
