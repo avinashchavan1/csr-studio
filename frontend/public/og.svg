@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" font-family="'Space Grotesk', system-ui, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f1b2d"/>
+      <stop offset="1" stop-color="#0a1220"/>
+    </linearGradient>
+    <linearGradient id="grade" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#46e3a0"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g opacity="0.06" stroke="#7dd3fc" stroke-width="1">
+    <path d="M0 90 H1200 M0 180 H1200 M0 270 H1200 M0 360 H1200 M0 450 H1200 M0 540 H1200"/>
+  </g>
+  <!-- brand -->
+  <g transform="translate(80,72)">
+    <rect width="56" height="56" rx="14" fill="#2563eb"/>
+    <path d="M28 12 l16 6 v12 c0 10-6.8 17.2-16 20 -9.2-2.8-16-10-16-20 V18 z" fill="none" stroke="#fff" stroke-width="3.2" stroke-linejoin="round"/>
+    <text x="74" y="26" fill="#e6edf6" font-size="26" font-weight="700">CSR Studio</text>
+    <text x="74" y="50" fill="#7dd3fc" font-size="16" font-family="ui-monospace, monospace">post-quantum certificate tooling</text>
+  </g>
+  <!-- headline -->
+  <text x="80" y="300" fill="#ffffff" font-size="72" font-weight="700">Is your site</text>
+  <text x="80" y="384" fill="#ffffff" font-size="72" font-weight="700">quantum-safe?</text>
+  <text x="80" y="452" fill="#93a4ba" font-size="27" font-family="'IBM Plex Sans', system-ui">Scan any domain's TLS cert for “harvest-now, decrypt-later” risk.</text>
+  <text x="80" y="490" fill="#93a4ba" font-size="27" font-family="'IBM Plex Sans', system-ui">Letter grade + migration plan. Free, no signup.</text>
+  <!-- grade badge -->
+  <g transform="translate(880,190)">
+    <rect width="240" height="240" rx="36" fill="url(#grade)" opacity="0.16"/>
+    <rect width="240" height="240" rx="36" fill="none" stroke="url(#grade)" stroke-width="3"/>
+    <text x="120" y="150" fill="#46e3a0" font-size="150" font-weight="700" text-anchor="middle">A+</text>
+    <text x="120" y="200" fill="#93a4ba" font-size="22" text-anchor="middle" font-family="ui-monospace, monospace">ML-DSA · FIPS 204</text>
+  </g>
+  <!-- chips -->
+  <g transform="translate(80,540)" font-family="ui-monospace, monospace" font-size="20">
+    <g><rect width="150" height="44" rx="22" fill="#122a20" stroke="#46e3a0" stroke-opacity="0.5"/><text x="75" y="29" fill="#46e3a0" text-anchor="middle">ML-DSA</text></g>
+    <g transform="translate(166,0)"><rect width="150" height="44" rx="22" fill="#122a20" stroke="#46e3a0" stroke-opacity="0.5"/><text x="75" y="29" fill="#46e3a0" text-anchor="middle">SLH-DSA</text></g>
+    <g transform="translate(332,0)"><rect width="140" height="44" rx="22" fill="#122a20" stroke="#46e3a0" stroke-opacity="0.5"/><text x="70" y="29" fill="#46e3a0" text-anchor="middle">Falcon</text></g>
+    <g transform="translate(488,0)"><rect width="180" height="44" rx="22" fill="#1a2230" stroke="#7dd3fc" stroke-opacity="0.4"/><text x="90" y="29" fill="#7dd3fc" text-anchor="middle">Hybrid CSR</text></g>
+  </g>
+</svg>

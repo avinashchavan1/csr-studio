@@ -40,14 +40,21 @@ export default function App() {
   const apiMode = api.mode();
 
   const [seedCsr, setSeedCsr] = useState(null);
+  const [seedHost, setSeedHost] = useState(null);
   const reloadHistory = () => api.historyList().then(setHistory).catch(() => {});
 
-  // review share link: /?share=<id> → open the CSR read-only in Decode
+  // deep links: /?share=<id> → read-only Decode · /?scan=<domain> → run a quantum scan
   useEffect(() => {
-    const id = new URLSearchParams(location.search).get("share");
-    if (!id) return;
-    setView("decode");
-    api.shareGet(id).then(d => setSeedCsr(d.csr)).catch(() => push("That review link wasn't found (it may have expired).", "err"));
+    const q = new URLSearchParams(location.search);
+    const id = q.get("share");
+    const scanHost = q.get("scan");
+    if (id) {
+      setView("decode");
+      api.shareGet(id).then(d => setSeedCsr(d.csr)).catch(() => push("That review link wasn't found (it may have expired).", "err"));
+    } else if (scanHost) {
+      setView("quantum");
+      setSeedHost(scanHost);
+    }
   }, []);
 
   // load history on mount and whenever the API config (demo/connected) changes
@@ -143,7 +150,7 @@ export default function App() {
         <div className={"content" + (view === "history" ? " narrow" : "")}>
           {view === "generate" && <GenerateView key={seed && seed._ts} seed={seed} onGenerated={onGenerated} push={push} />}
           {view === "decode" && <DecodeView push={push} seedCsr={seedCsr} />}
-          {view === "quantum" && <QuantumScanView push={push}
+          {view === "quantum" && <QuantumScanView push={push} seedHost={seedHost}
             onGenerateHybrid={(target) => { setSeed({ cn: /^[a-zA-Z0-9.-]+$/.test(target || "") ? target : "", _ts: Date.now() }); go("generate"); push("Use the Hybrid PQC button below"); }} />}
           {view === "compare" && <CompareView push={push} />}
           {view === "history" && <HistoryView items={history} onDelete={deleteItem} onClear={clearAll} onRegenerate={regenerate} push={push} />}
