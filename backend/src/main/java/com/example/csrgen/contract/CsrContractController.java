@@ -30,10 +30,20 @@ public class CsrContractController {
 
     private final ContractService contractService;
     private final JobStore jobStore;
+    private final QuantumScanService quantumScanService;
 
-    public CsrContractController(ContractService contractService, JobStore jobStore) {
+    public CsrContractController(ContractService contractService, JobStore jobStore,
+                                 QuantumScanService quantumScanService) {
         this.contractService = contractService;
         this.jobStore = jobStore;
+        this.quantumScanService = quantumScanService;
+    }
+
+    /** Quantum-readiness (HNDL) report for a CSR, certificate, or live host. */
+    @PostMapping(value = "/quantum-scan", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public com.example.csrgen.contract.dto.QuantumScanResponse quantumScan(
+            @RequestBody com.example.csrgen.contract.dto.QuantumScanRequest request) {
+        return quantumScanService.scan(request);
     }
 
     /**
@@ -53,6 +63,14 @@ public class CsrContractController {
             return ResponseEntity.accepted().body(body);
         }
         return ResponseEntity.ok(jobStore.generateSync(request, idempotencyKey));
+    }
+
+    /** Hybrid: classical CSR (from the body's key spec) + a PQC CSR for the same identity. */
+    @PostMapping(value = "/hybrid", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public com.example.csrgen.contract.dto.HybridResponse hybrid(
+            @Valid @RequestBody GenerateRequest request,
+            @RequestParam(name = "pqc", defaultValue = "ML-DSA-65") String pqc) {
+        return contractService.hybrid(request, pqc);
     }
 
     @PostMapping(value = "/self-signed", consumes = MediaType.APPLICATION_JSON_VALUE)

@@ -225,6 +225,29 @@ export async function generate(opts, hooks) {
   onProgress({ phase: "done" });
   return normGenerate(data, opts);
 }
+/** Hybrid: classical CSR (from opts) + a PQC CSR for the same identity. */
+export async function hybrid(opts, pqcAlgo = "ML-DSA-65") {
+  if (mode() === "demo") throw new ApiError("Hybrid CSRs require a connected backend.");
+  const { data } = await request("/csr/hybrid?pqc=" + encodeURIComponent(pqcAlgo), { body: generateRequest(opts), retries: 0 });
+  return {
+    classical: normGenerate({ csr: data.classical.csr, privateKey: data.classical.privateKey, details: data.classical.details }, opts),
+    pqc: normGenerate({ csr: data.pqc.csr, privateKey: data.pqc.privateKey, details: data.pqc.details }, { ...opts, keyType: "pqc", pqcAlgo })
+  };
+}
+/** Quantum-readiness scan of a CSR, certificate, or live host. */
+export async function quantumScan({ csr, certificate, host }) {
+  if (mode() === "demo") throw new ApiError("Quantum scan requires a connected backend.");
+  return (await request("/csr/quantum-scan", { body: { csr, certificate, host }, retries: config.retries })).data;
+}
+/** Create a read-only review share link for a CSR. Returns { id, path, createdAt }. */
+export async function shareCreate(csrPem) {
+  if (mode() === "demo") throw new ApiError("Review links require a connected backend.");
+  return (await request("/csr/share", { body: { csr: csrPem }, retries: 0 })).data;
+}
+export async function shareGet(id) {
+  return (await request("/csr/share/" + encodeURIComponent(id), { method: "GET", retries: config.retries })).data;
+}
+
 export async function selfSigned(opts, days = 365) {
   if (mode() === "demo") {
     throw new ApiError("Self-signed test certificates require a connected backend (not available in demo).");
@@ -368,5 +391,5 @@ export const SAMPLES = {
   }
 };
 
-const CSRApi = { generate, selfSigned, decode, lint, pkcs12, match, getConfig, setConfig, mode, host, testConnection, generateRequest, historyList, historySave, historyDelete, historyClear, ApiError, SAMPLES, DEFAULTS };
+const CSRApi = { generate, hybrid, quantumScan, shareCreate, shareGet, selfSigned, decode, lint, pkcs12, match, getConfig, setConfig, mode, host, testConnection, generateRequest, historyList, historySave, historyDelete, historyClear, ApiError, SAMPLES, DEFAULTS };
 export default CSRApi;

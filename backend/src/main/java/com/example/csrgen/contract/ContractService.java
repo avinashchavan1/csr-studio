@@ -47,6 +47,27 @@ public class ContractService {
         this.certService = certService;
     }
 
+    /**
+     * Hybrid generation: one identity, two CSRs — the request's classical key spec plus a
+     * PQC parameter set. Same subject / SANs / extensions in both, independent key pairs.
+     */
+    public com.example.csrgen.contract.dto.HybridResponse hybrid(GenerateRequest req, String pqcAlgo) {
+        String type = algoType(req.key().algorithm());
+        if (type.equals("PQC")) {
+            throw new CryptoException("Hybrid needs a classical key (RSA/ECDSA/Ed25519) in the request; the PQC half comes from the 'pqc' parameter.");
+        }
+        if (canonicalPqcName(pqcAlgo == null ? "" : pqcAlgo) == null) {
+            throw new CryptoException("Unknown PQC parameter set: '" + pqcAlgo + "'. Use ML-DSA / SLH-DSA / Falcon names.");
+        }
+        GenerateResponse classical = generate(req);
+        GenerateRequest pqcReq = new GenerateRequest(
+                req.subject(), req.subjectAltNames(),
+                new ContractKey(pqcAlgo, null, null, "PKCS#8"),
+                req.signatureHash(), req.extensions());
+        GenerateResponse pqc = generate(pqcReq);
+        return new com.example.csrgen.contract.dto.HybridResponse(classical, pqc);
+    }
+
     /** Generate a CSR, then self-sign a test certificate from it. */
     public com.example.csrgen.contract.dto.SelfSignedResponse selfSigned(GenerateRequest req, int days) {
         GenerateResponse gen = generate(req);

@@ -241,6 +241,36 @@ export function GenerateView({ seed, onGenerated, push }) {
     } catch (e) { push(e.message || "PKCS#12 bundling failed", "err"); }
   }
 
+  async function genHybrid() {
+    if (f.keyType === "pqc") { push("Pick a classical key (RSA/ECDSA/Ed25519); the PQC half is added automatically.", "err"); return; }
+    if (!validate()) { push("Please fix the highlighted fields.", "err"); return; }
+    setBusy(true); setResult(null); setProgress({ phase: "submitting" }); setElapsed(0);
+    const t0 = Date.now();
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => setElapsed((Date.now() - t0) / 1000), 100);
+    try {
+      const res = await api.hybrid(opts(), "ML-DSA-65");
+      setResult({ hybrid: res, subject: res.classical.subject, sans: res.classical.sans });
+      onGenerated && onGenerated(res.classical);
+      push("Hybrid pair generated — classical + ML-DSA-65");
+    } catch (err) {
+      console.error(err);
+      push(err.message || "Hybrid generation failed", "err");
+    } finally {
+      clearInterval(timerRef.current);
+      setBusy(false); setProgress(null);
+    }
+  }
+
+  async function shareCsr(pem) {
+    try {
+      const s = await api.shareCreate(pem);
+      const link = location.origin + "/?share=" + s.id;
+      await copyText(link);
+      push("Review link copied to clipboard");
+    } catch (e) { push(e.message || "Couldn't create link", "err"); }
+  }
+
   function reset() { setF(emptyForm()); setResult(null); setErrors({}); setP12pass(""); }
 
   const doCopy = (text, what) => copyText(text).then(() => push(what + " copied")).catch(() => push("Copy failed", "err"));
@@ -416,6 +446,8 @@ export function GenerateView({ seed, onGenerated, push }) {
           <Button variant="primary" size="lg" icon={busy ? null : "cert"} loading={busy} onClick={generate} style={{ flex: 1 }}>
             {busy ? "Working…" : "Generate CSR & private key"}
           </Button>
+          <Button variant="ghost" size="lg" icon="spark" onClick={genHybrid} disabled={busy || f.keyType === "pqc"}
+            title="Generate a matched classical + ML-DSA (post-quantum) pair">Hybrid PQC</Button>
           <Button variant="ghost" size="lg" icon="shield" onClick={genSelfSigned} disabled={busy}
             title="Generate a self-signed test certificate (connected mode)">Self-signed cert</Button>
           <Button variant="ghost" size="lg" icon="refresh" onClick={reset} title="Reset form" />
@@ -436,7 +468,32 @@ export function GenerateView({ seed, onGenerated, push }) {
 
         {busy && <ProgressStepper progress={progress} elapsed={elapsed} form={f} />}
 
-        {result && (
+        {result && result.hybrid && (
+          <div className="stack fade-in">
+            <div className="warn-strip" style={{ background: "var(--accent-soft)", borderColor: "color-mix(in srgb, var(--accent) 24%, transparent)" }}>
+              <Icon name="spark" style={{ color: "var(--accent)" }} />
+              <span><b>Hybrid pair for the same identity.</b> Submit the <b>classical</b> CSR to your CA today; keep the <b>ML-DSA</b> (post-quantum) one for crypto-agility as PQC issuance rolls out. Two independent private keys — store both safely.</span>
+            </div>
+            {[["classical", result.hybrid.classical, "Classical"], ["pqc", result.hybrid.pqc, "Post-quantum"]].map(([k, r, label]) => (
+              <div className="card" key={k}>
+                <div className="card-head"><span className="ico"><Icon name={k === "pqc" ? "key" : "cert"} /></span>
+                  <div><h3>{label} — {r.keyLabel}</h3></div>
+                  <span style={{ marginLeft: "auto" }}><Button variant="ghost" size="sm" icon="arrow" onClick={() => shareCsr(r.csrPem)}>Share</Button></span>
+                </div>
+                <div className="card-body stack">
+                  <CodeBlock title={fileBase + "-" + k + ".csr"} value={r.csrPem}
+                    onCopy={() => doCopy(r.csrPem, "CSR")}
+                    onDownload={() => { download(fileBase + "-" + k + ".csr", r.csrPem); push("CSR downloaded"); }} />
+                  <CodeBlock title={fileBase + "-" + k + ".key — private key"} value={r.keyPem}
+                    onCopy={() => doCopy(r.keyPem, "Private key")}
+                    onDownload={() => { download(fileBase + "-" + k + ".key", r.keyPem); push("Private key downloaded"); }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {result && !result.hybrid && (
           <div className="stack fade-in">
             <div className="warn-strip">
               <Icon name="lock" />
@@ -448,6 +505,10 @@ export function GenerateView({ seed, onGenerated, push }) {
             <CodeBlock title={fileBase + ".csr — certificate signing request"} value={result.csrPem}
               onCopy={() => doCopy(result.csrPem, "CSR")}
               onDownload={() => { download(fileBase + ".csr", result.csrPem); push("CSR downloaded"); }} />
+            <div style={{ marginTop: -10 }}>
+              <Button variant="soft" size="sm" icon="arrow" onClick={() => shareCsr(result.csrPem)}
+                title="Create a read-only link to share this CSR for review">Share for review</Button>
+            </div>
 
             <CodeBlock title={fileBase + ".key — private key (" + (result.keyFormat || "PKCS#8") + ")"} value={result.keyPem}
               onCopy={() => doCopy(result.keyPem, "Private key")}

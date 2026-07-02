@@ -1,25 +1,28 @@
 /* Paste & inspect an existing CSR (ported from design views-decode.jsx) */
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Icon, Field, Button, Pill } from "../components/ui.jsx";
 import * as api from "../lib/api.js";
 import * as engine from "../lib/engine.js";
 
 const SAMPLE_CSR_HINT = "Paste a PEM-encoded CSR beginning with -----BEGIN CERTIFICATE REQUEST-----";
 
-export function DecodeView({ push }) {
+export function DecodeView({ push, seedCsr }) {
   const [text, setText] = useState("");
   const [keyText, setKeyText] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [decoded, setDecoded] = useState(null);
   const [match, setMatch] = useState(null);
   const [lint, setLint] = useState(null);
+  const [quantum, setQuantum] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+
+  useEffect(() => { if (seedCsr) { setText(seedCsr); run(seedCsr); } /* eslint-disable-next-line */ }, [seedCsr]);
 
   async function run(input, keyInput) {
     const pem = (input != null ? input : text).trim();
     const kpem = (keyInput != null ? keyInput : keyText).trim();
-    setErr(""); setDecoded(null); setMatch(null); setLint(null);
+    setErr(""); setDecoded(null); setMatch(null); setLint(null); setQuantum(null);
     if (!pem) { setErr("Paste a CSR first."); return; }
     if (!/BEGIN CERTIFICATE REQUEST/.test(pem)) {
       setErr("This doesn't look like a CSR. It should start with “-----BEGIN CERTIFICATE REQUEST-----”."); return;
@@ -29,6 +32,7 @@ export function DecodeView({ push }) {
       const res = await api.decode(pem);
       setDecoded(res);
       api.lint(pem).then(setLint).catch(() => {});
+      api.quantumScan({ csr: pem }).then(setQuantum).catch(() => {});
       if (kpem) {
         // Key match runs entirely in-browser (node-forge) — the private key is
         // NEVER sent to the server, so the "compared locally" promise holds.
@@ -60,6 +64,13 @@ export function DecodeView({ push }) {
   const subjLabels = [["CN", "Common Name"], ["O", "Organization"], ["OU", "Org. Unit"], ["L", "Locality"], ["ST", "State"], ["C", "Country"], ["email", "Email"]];
 
   return (
+    <>
+    {seedCsr && (
+      <div className="warn-strip" style={{ marginBottom: 18, background: "var(--accent-soft)", borderColor: "color-mix(in srgb, var(--accent) 24%, transparent)" }}>
+        <Icon name="eye" style={{ color: "var(--accent)" }} />
+        <span><b>Shared for review.</b> This CSR was opened from a review link (read-only). Check the subject, SANs and quantum readiness below before it's submitted to a CA.</span>
+      </div>
+    )}
     <div className="grid-2 fade-in">
       <div className="stack">
         <div className="card">
@@ -131,6 +142,33 @@ export function DecodeView({ push }) {
                     <ul style={{ margin: 0, paddingLeft: 18 }}>{lint.warnings.map((w, i) => <li key={i} style={{ color: "var(--warning)", fontSize: 13 }}>{w}</li>)}</ul>}
                   {(!lint.errors || !lint.errors.length) && (!lint.warnings || !lint.warnings.length) &&
                     <span className="muted" style={{ fontSize: 13 }}>No issues — meets the baseline checks.</span>}
+                </div>
+              </div>
+            )}
+            {quantum && (
+              <div className="card" style={{ borderColor: quantum.quantumVulnerable ? "color-mix(in srgb, var(--warning) 40%, transparent)" : "color-mix(in srgb, var(--success) 40%, transparent)" }}>
+                <div className="card-head">
+                  <span className="ico" style={{ color: quantum.quantumVulnerable ? "var(--warning)" : "var(--success)" }}><Icon name="shield" /></span>
+                  <h3>Quantum readiness</h3>
+                  <span style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
+                    <span style={{ fontFamily: "var(--font-head)", fontWeight: 700, fontSize: 22, color: quantum.quantumVulnerable ? "var(--warning)" : "var(--success)" }}>{quantum.grade}</span>
+                    <Pill kind={quantum.quantumVulnerable ? "warn" : "ok"} icon={quantum.quantumVulnerable ? "alert" : "check"}>
+                      {quantum.quantumVulnerable ? "HNDL: " + quantum.hndlRisk : "Quantum-safe"}
+                    </Pill>
+                  </span>
+                </div>
+                <div className="card-body stack">
+                  <dl className="meta">
+                    <dt>Key</dt><dd>{quantum.keyAlgorithm} {quantum.keyDetail}</dd>
+                    <dt>Signature</dt><dd>{quantum.signatureAlgorithm || "—"}</dd>
+                  </dl>
+                  <ul style={{ margin: 0, paddingLeft: 18 }}>
+                    {quantum.findings.map((x, i) => <li key={i} style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 4 }}>{x}</li>)}
+                  </ul>
+                  <div className="warn-strip" style={{ background: "var(--accent-soft)", borderColor: "color-mix(in srgb, var(--accent) 24%, transparent)" }}>
+                    <Icon name="arrow" style={{ color: "var(--accent)" }} />
+                    <span>{quantum.recommendation}</span>
+                  </div>
                 </div>
               </div>
             )}
@@ -230,5 +268,6 @@ export function DecodeView({ push }) {
         )}
       </div>
     </div>
+    </>
   );
 }
