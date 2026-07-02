@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://csr-studio-7c0a4c.netlify.app/sitemap.xml
+Sitemap: https://pqcert.avinashchavan.com/sitemap.xml
