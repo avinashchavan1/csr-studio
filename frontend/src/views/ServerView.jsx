@@ -7,6 +7,15 @@ import { copyText } from "../lib/data.js";
 
 function jsonStr(o) { return JSON.stringify(o, null, 2); }
 
+// SHA-256 (hex) of the edit password. Rotate by replacing this hash.
+// TEMP: hash of "changeme" — swap for the real password's hash.
+const PW_HASH = "057ba03d6c44104863dc7361fe4578965d1887360f90a0895882e58a6248fc86";
+const UNLOCK_KEY = "csrgen.server.unlocked";
+async function sha256Hex(s) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
 function SetRow({ title, desc, children }) {
   return (
     <div className="set-row">
@@ -26,13 +35,39 @@ export function ServerView({ push, onConfigChange }) {
   const set = (k, v) => setC(p => ({ ...p, [k]: v }));
   const mode = api.mode();
 
+  const [unlocked, setUnlocked] = useState(() => {
+    try { return sessionStorage.getItem(UNLOCK_KEY) === "1"; } catch (e) { return false; }
+  });
+  const [pw, setPw] = useState("");
+  const [unlocking, setUnlocking] = useState(false);
+
+  async function unlock() {
+    setUnlocking(true);
+    try {
+      if ((await sha256Hex(pw)) === PW_HASH) {
+        setUnlocked(true); setPw("");
+        try { sessionStorage.setItem(UNLOCK_KEY, "1"); } catch (e) {}
+        push("Editing unlocked");
+      } else {
+        push("Incorrect password", "err");
+      }
+    } finally { setUnlocking(false); }
+  }
+  function lock() {
+    setUnlocked(false);
+    try { sessionStorage.removeItem(UNLOCK_KEY); } catch (e) {}
+    push("Editing locked");
+  }
+
   function save() {
+    if (!unlocked) { push("Unlock editing first", "err"); return; }
     const next = api.setConfig(c);
     setC(next); setStatus(null);
     onConfigChange && onConfigChange();
     push(next.baseUrl ? "Saved — connected to " + api.host() : "Saved — running in demo mode");
   }
   async function test() {
+    if (!unlocked) { push("Unlock editing first", "err"); return; }
     setTesting(true); setStatus(null);
     api.setConfig(c); onConfigChange && onConfigChange();
     setStatus(await api.testConnection()); setTesting(false);
@@ -77,6 +112,32 @@ export function ServerView({ push, onConfigChange }) {
         </div>
       </div>
 
+      <div className="card">
+        <div className="card-head">
+          <span className="ico" style={{ color: unlocked ? "var(--success)" : "var(--warning)" }}>
+            <Icon name={unlocked ? "check" : "lock"} />
+          </span>
+          <div>
+            <h3>{unlocked ? "Editing unlocked" : "Settings locked"}</h3>
+            <div className="desc">{unlocked
+              ? "Connection, auth and reliability settings can be edited and saved."
+              : "Enter the password to edit the settings below."}</div>
+          </div>
+          {unlocked && <span style={{ marginLeft: "auto" }}><Button variant="ghost" size="sm" icon="lock" onClick={lock}>Lock</Button></span>}
+        </div>
+        {!unlocked && (
+          <div className="card-body">
+            <div className="input-row">
+              <input className="input" type="password" value={pw} placeholder="Edit password"
+                onChange={e => setPw(e.target.value)} onKeyDown={e => { if (e.key === "Enter") unlock(); }} />
+              <Button variant="primary" icon="lock" loading={unlocking} onClick={unlock}>Unlock</Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <fieldset disabled={!unlocked}
+        style={{ border: 0, margin: 0, padding: 0, minInlineSize: 0, display: "flex", flexDirection: "column", gap: 22, opacity: unlocked ? 1 : 0.6 }}>
       <div className="card">
         <div className="card-head">
           <span className="ico"><Icon name="lock" /></span>
@@ -183,6 +244,7 @@ export function ServerView({ push, onConfigChange }) {
           )}
         </div>
       </div>
+      </fieldset>
 
       <div className="section-intro" style={{ marginTop: 8, marginBottom: 0 }}>
         <h2 style={{ fontSize: 18 }}>API contract</h2>
