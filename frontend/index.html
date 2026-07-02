@@ -3,19 +3,63 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CSR Studio — Certificate Signing Requests</title>
-    <meta name="description" content="Generate CSRs (RSA, ECDSA, Ed25519, post-quantum ML-DSA/SLH-DSA/Falcon), decode, and scan any site's quantum readiness." />
+    <title>CSR Generator — RSA, ECDSA &amp; Post-Quantum (ML-DSA) CSRs | CSR Studio</title>
+    <meta name="description" content="Free online CSR generator: create Certificate Signing Requests with RSA, ECDSA, Ed25519 or post-quantum ML-DSA / SLH-DSA / Falcon keys. Decode CSRs, check signatures, and scan any website's quantum readiness. No signup, keys never leave the server unencrypted." />
+    <meta name="keywords" content="CSR generator, online CSR generator, certificate signing request, post-quantum CSR, ML-DSA, quantum safe certificate, decode CSR, CSR decoder, ECDSA CSR, generate CSR openssl alternative" />
+    <link rel="canonical" href="https://csr-studio-7c0a4c.netlify.app/" />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="theme-color" content="#0f1b2d" />
+
     <!-- Social / Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="CSR Studio" />
     <meta property="og:title" content="Is your site quantum-safe? — CSR Studio" />
-    <meta property="og:description" content="Scan any domain's TLS certificate for post-quantum (HNDL) risk and get a letter grade + migration plan. Plus hybrid classical+PQC CSR generation." />
+    <meta property="og:description" content="Free CSR generator with post-quantum (ML-DSA) support. Scan any domain's TLS cert for harvest-now-decrypt-later risk and get a letter grade + migration plan." />
     <meta property="og:url" content="https://csr-studio-7c0a4c.netlify.app/" />
     <meta property="og:image" content="https://csr-studio-7c0a4c.netlify.app/og.svg" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Is your site quantum-safe? — CSR Studio" />
-    <meta name="twitter:description" content="Scan any domain's post-quantum readiness — letter grade + migration plan. Free, no signup." />
+    <meta name="twitter:description" content="Free CSR generator + quantum-readiness scanner. Grade any domain's post-quantum risk. No signup." />
     <meta name="twitter:image" content="https://csr-studio-7c0a4c.netlify.app/og.svg" />
+
+    <!-- Structured data: software + FAQ (rich results) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "CSR Studio",
+      "applicationCategory": "SecurityApplication",
+      "operatingSystem": "Web",
+      "url": "https://csr-studio-7c0a4c.netlify.app/",
+      "description": "Free online tool to generate, decode and validate Certificate Signing Requests (CSRs) with classical (RSA, ECDSA, Ed25519) and post-quantum (ML-DSA, SLH-DSA, Falcon) algorithms, plus a quantum-readiness scanner for any website.",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+      "featureList": [
+        "Generate RSA, ECDSA, Ed25519 CSRs",
+        "Post-quantum CSRs (ML-DSA / SLH-DSA / Falcon, FIPS 204/205)",
+        "Hybrid classical + post-quantum CSR pairs",
+        "Decode and verify existing CSRs",
+        "Quantum-readiness scan of any live domain",
+        "Self-signed certificates and PKCS#12 export"
+      ]
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "What is a CSR (Certificate Signing Request)?",
+          "acceptedAnswer": { "@type": "Answer", "text": "A CSR is a PKCS#10 message containing your public key and identity (domain, organization) that you submit to a Certificate Authority to obtain an SSL/TLS certificate. The matching private key stays with you." } },
+        { "@type": "Question", "name": "What is a post-quantum CSR?",
+          "acceptedAnswer": { "@type": "Answer", "text": "A CSR signed with a NIST post-quantum algorithm such as ML-DSA (FIPS 204), SLH-DSA (FIPS 205) or Falcon. These resist attacks from quantum computers, unlike RSA and ECDSA." } },
+        { "@type": "Question", "name": "How do I check if my website is quantum-safe?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Enter your domain in CSR Studio's Quantum Scan. It fetches the live TLS certificate and grades its cryptography for 'harvest now, decrypt later' risk, with a migration recommendation." } },
+        { "@type": "Question", "name": "Is CSR Studio free?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Yes. CSR generation, decoding, quantum scanning and hybrid CSRs are free with no signup." } }
+      ]
+    }
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -24,7 +68,34 @@
     />
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Crawlable fallback content: shown before the React app hydrates and to
+         non-JS crawlers. React replaces #root on mount. -->
+    <div id="root">
+      <main style="max-width:820px;margin:0 auto;padding:48px 24px;font-family:system-ui,-apple-system,'IBM Plex Sans',sans-serif;color:#0f1b2d;line-height:1.6">
+        <h1 style="font-size:34px;line-height:1.15;margin:0 0 12px">Free CSR Generator — RSA, ECDSA &amp; Post-Quantum (ML-DSA)</h1>
+        <p style="font-size:18px;color:#5b6b82;margin:0 0 24px">
+          CSR Studio is a free online tool to <strong>generate Certificate Signing Requests (CSRs)</strong>,
+          decode and verify existing ones, and <strong>scan any website's post-quantum readiness</strong> —
+          no signup required.
+        </p>
+        <h2 style="font-size:22px;margin:28px 0 10px">What you can do</h2>
+        <ul style="font-size:16px;color:#334">
+          <li><strong>Generate a CSR</strong> with RSA (2048/3072/4096), ECDSA (P-256/384/521), Ed25519, or post-quantum ML-DSA, SLH-DSA and Falcon keys.</li>
+          <li><strong>Hybrid CSRs</strong> — a matched classical + post-quantum pair for crypto-agility during the PQC migration.</li>
+          <li><strong>Decode &amp; inspect</strong> any PKCS#10 CSR: subject, SANs, key strength, signature validity, extensions and fingerprint.</li>
+          <li><strong>Quantum-readiness scan</strong> of any live domain — a letter grade for "harvest now, decrypt later" risk with a migration plan.</li>
+          <li><strong>Self-signed test certificates</strong> and <strong>PKCS#12 (.p12)</strong> export.</li>
+        </ul>
+        <h2 style="font-size:22px;margin:28px 0 10px">Frequently asked questions</h2>
+        <h3 style="font-size:17px;margin:16px 0 4px">What is a CSR?</h3>
+        <p style="margin:0 0 10px;color:#334">A Certificate Signing Request is a PKCS#10 message with your public key and identity that you send to a Certificate Authority to get an SSL/TLS certificate.</p>
+        <h3 style="font-size:17px;margin:16px 0 4px">What is a post-quantum CSR?</h3>
+        <p style="margin:0 0 10px;color:#334">A CSR signed with a NIST post-quantum algorithm — ML-DSA (FIPS 204), SLH-DSA (FIPS 205) or Falcon — that resists quantum-computer attacks, unlike RSA and ECDSA.</p>
+        <h3 style="font-size:17px;margin:16px 0 4px">How do I check if my website is quantum-safe?</h3>
+        <p style="margin:0 0 10px;color:#334">Open Quantum Scan, enter your domain, and CSR Studio grades your live TLS certificate's cryptography and recommends a migration path.</p>
+        <p style="font-size:15px;color:#5b6b82;margin-top:24px">Loading the interactive app… If it doesn't appear, enable JavaScript.</p>
+      </main>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
