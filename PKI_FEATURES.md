@@ -42,6 +42,10 @@ Audit of fields/capabilities vs PKI best practice, with phased implementation.
 - **H3 — Review links + diff.** Shareable read-only decode links (`csr_studio_share` table) for
   team approval; side-by-side CSR diff in the UI.
 
+Status of Phase H: **H1, H2, H3 DONE — deployed + prod-verified** (87 backend tests).
+Highlight: live-host quantum scan fetches a real TLS cert and grades it. Note: API-created
+Render service has no GitHub webhook → trigger deploys via Render API, not git push.
+
 ## Status
 - [x] Phase 1 (Ed25519 key type; decode shows keyUsage/EKU/basicConstraints; country uppercased; SAN-only CSR allowed — 63 tests)
 - [x] Phase 2 (F4 basicConstraints CA:true/pathlen requestable + decoded; F5 explicit SAN type picker DNS/IP/email/URI)
