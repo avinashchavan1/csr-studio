@@ -8,8 +8,7 @@ import { copyText } from "../lib/data.js";
 function jsonStr(o) { return JSON.stringify(o, null, 2); }
 
 // SHA-256 (hex) of the edit password. Rotate by replacing this hash.
-// TEMP: hash of "changeme" — swap for the real password's hash.
-const PW_HASH = "057ba03d6c44104863dc7361fe4578965d1887360f90a0895882e58a6248fc86";
+const PW_HASH = "54fbe923486a4d16021542f4bb5f4bd76d58f33e0a99e0d551160a35ed43eeb7";
 const UNLOCK_KEY = "csrgen.server.unlocked";
 async function sha256Hex(s) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
