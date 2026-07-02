@@ -5,6 +5,8 @@ import { TweaksPanel } from "./components/TweaksPanel.jsx";
 import { useTweaks } from "./hooks/useTweaks.js";
 import { GenerateView } from "./views/GenerateView.jsx";
 import { DecodeView } from "./views/DecodeView.jsx";
+import { QuantumScanView } from "./views/QuantumScanView.jsx";
+import { CompareView } from "./views/CompareView.jsx";
 import { HistoryView } from "./views/HistoryView.jsx";
 import { ServerView } from "./views/ServerView.jsx";
 import * as api from "./lib/api.js";
@@ -20,6 +22,8 @@ const ACCENTS = {
 const NAV = [
   { id: "generate", label: "Generate CSR", icon: "cert" },
   { id: "decode", label: "Decode / Inspect", icon: "search" },
+  { id: "quantum", label: "Quantum Scan", icon: "spark" },
+  { id: "compare", label: "Compare", icon: "layers" },
   { id: "history", label: "History", icon: "history" },
   { id: "server", label: "Server / API", icon: "server" }
 ];
@@ -84,6 +88,8 @@ export default function App() {
   const subtitle = {
     generate: apiMode === "demo" ? "Build a signing request — running the in-browser demo until your backend is connected." : "Build a signing request; your backend creates the key and signs it.",
     decode: "Inspect and verify any existing PKCS#10 request.",
+    quantum: "Grade a live site, CSR or certificate against the post-quantum threat.",
+    compare: "Diff two CSRs field by field before submitting.",
     history: apiMode === "connected" ? "Saved requests stored on " + api.host() + " (CSR + metadata only)." : "Saved requests from this browser.",
     server: "Connect your backend and view the API contract it must implement."
   }[view];
@@ -137,6 +143,9 @@ export default function App() {
         <div className={"content" + (view === "history" ? " narrow" : "")}>
           {view === "generate" && <GenerateView key={seed && seed._ts} seed={seed} onGenerated={onGenerated} push={push} />}
           {view === "decode" && <DecodeView push={push} seedCsr={seedCsr} />}
+          {view === "quantum" && <QuantumScanView push={push}
+            onGenerateHybrid={(target) => { setSeed({ cn: /^[a-zA-Z0-9.-]+$/.test(target || "") ? target : "", _ts: Date.now() }); go("generate"); push("Use the Hybrid PQC button below"); }} />}
+          {view === "compare" && <CompareView push={push} />}
           {view === "history" && <HistoryView items={history} onDelete={deleteItem} onClear={clearAll} onRegenerate={regenerate} push={push} />}
           {view === "server" && <ServerView push={push} onConfigChange={refreshApi} />}
         </div>
