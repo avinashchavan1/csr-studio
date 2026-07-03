@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Post-Quantum Cryptography for TLS: ML-DSA, SLH-DSA &amp; Falcon | CSR Studio</title>
+<meta name="description" content="A practical intro to post-quantum cryptography for certificates: the NIST standards ML-DSA (FIPS 204), SLH-DSA (FIPS 205) and Falcon, what they replace, and how to generate a post-quantum CSR today." />
+<meta name="keywords" content="post-quantum cryptography, ML-DSA, SLH-DSA, Falcon, FIPS 204, FIPS 205, post-quantum CSR, Dilithium, quantum-safe certificate, PQC migration" />
+<link rel="canonical" href="https://pqcert.avinashchavan.com/guides/post-quantum-cryptography-tls.html" />
+<meta name="robots" content="index, follow, max-image-preview:large" />
+<meta property="og:type" content="article" />
+<meta property="og:title" content="Post-quantum cryptography for TLS: ML-DSA, SLH-DSA &amp; Falcon" />
+<meta property="og:description" content="The NIST post-quantum signature standards explained, and how to generate a post-quantum CSR now." />
+<meta property="og:url" content="https://pqcert.avinashchavan.com/guides/post-quantum-cryptography-tls.html" />
+<style>
+:root{--bg:#f4f6f9;--surface:#fff;--text:#0f1b2d;--muted:#5b6b82;--accent:#2563eb;--border:#e3e8ef}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.7}
+.wrap{max-width:760px;margin:0 auto;padding:40px 22px}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+nav.bc{font-size:14px;color:var(--muted);margin-bottom:26px}
+h1{font-size:31px;line-height:1.18;margin:0 0 14px}h2{font-size:22px;margin:34px 0 10px}h3{font-size:18px;margin:22px 0 6px}
+p,li{font-size:16px}.lede{font-size:18px;color:var(--muted)}
+table{width:100%;border-collapse:collapse;margin:18px 0;font-size:14.5px;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border)}th{background:#eef2f7}
+code{background:#eef2f7;border:1px solid var(--border);border-radius:5px;padding:1px 6px;font-family:ui-monospace,monospace;font-size:.9em}
+.cta{display:inline-block;margin:8px 0;background:var(--accent);color:#fff;padding:11px 20px;border-radius:8px;font-weight:600}.cta:hover{text-decoration:none;background:#1d4ed8}
+footer{margin-top:44px;padding-top:20px;border-top:1px solid var(--border);color:var(--muted);font-size:14px}
+.rel a{display:block;margin:4px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav class="bc"><a href="/">CSR Studio</a> › <a href="/guides/">Guides</a> › Post-quantum cryptography for TLS</nav>
+<h1>Post-quantum cryptography for TLS: ML-DSA, SLH-DSA &amp; Falcon</h1>
+<p class="lede">In 2024 NIST finalized the first post-quantum cryptography (PQC) standards. Here's what they are, what they replace, and how to start using post-quantum signatures in certificates today.</p>
+
+<h2>Why now</h2>
+<p>Classical public-key algorithms (RSA, ECDSA) fall to Shor's algorithm on a large quantum computer. To get ahead of "<a href="/guides/is-my-website-quantum-safe.html">harvest now, decrypt later</a>," NIST ran a multi-year competition and standardized replacements built on quantum-hard math (lattices and hashes).</p>
+
+<h2>The signature standards</h2>
+<table>
+<tr><th>Standard</th><th>Name</th><th>Basis</th><th>Notes</th></tr>
+<tr><td>FIPS 204</td><td><strong>ML-DSA</strong> (was CRYSTALS-Dilithium)</td><td>Lattice</td><td>The primary, general-purpose choice. Sets: ML-DSA-44/65/87.</td></tr>
+<tr><td>FIPS 205</td><td><strong>SLH-DSA</strong> (was SPHINCS+)</td><td>Hash</td><td>Conservative, stateless, larger/slower signatures. Great when you distrust lattices.</td></tr>
+<tr><td>Draft</td><td><strong>Falcon</strong> (FN-DSA)</td><td>Lattice (NTRU)</td><td>Very compact signatures; more complex to implement safely.</td></tr>
+</table>
+<p>(For key <em>encapsulation</em> — the other half of TLS — the standard is <strong>ML-KEM</strong>, FIPS 203. This guide focuses on signatures, which is what CSRs and certificates use.)</p>
+
+<h2>Which parameter set?</h2>
+<ul>
+<li><strong>ML-DSA-65</strong> — the sensible default; NIST security level 3.</li>
+<li><strong>ML-DSA-44</strong> — smaller/faster, level 2.</li>
+<li><strong>ML-DSA-87</strong> — strongest, level 5.</li>
+<li><strong>SLH-DSA</strong> — choose if you want hash-based conservatism and can accept bigger signatures.</li>
+</ul>
+
+<h2>The catch: adoption</h2>
+<p>PQC signatures are standardized, but <strong>public CAs and browsers don't broadly issue or trust PQC certificates yet</strong>, and signatures are kilobytes (vs bytes classically), which affects handshake size. So today PQC shines for:</p>
+<ul>
+<li><strong>Internal CAs</strong> and private PKI you control.</li>
+<li><strong>Testing and pilots</strong> to measure size/performance impact.</li>
+<li><strong>Crypto-agility:</strong> proving your pipeline can produce and handle PQC before you're forced to.</li>
+</ul>
+
+<h2>Hybrid is the pragmatic path</h2>
+<p>Generate a <strong>hybrid pair</strong>: a classical CSR (RSA/ECDSA) that today's CA will sign, plus an ML-DSA CSR for the same identity to exercise your PQC path. CSR Studio does this in one click, so you migrate incrementally with zero downside.</p>
+
+<a class="cta" href="/">Generate a post-quantum or hybrid CSR →</a>
+
+<h2>Related guides</h2>
+<div class="rel">
+<a href="/guides/is-my-website-quantum-safe.html">Is my website quantum-safe?</a>
+<a href="/guides/rsa-vs-ecdsa-vs-ml-dsa.html">RSA vs ECDSA vs Ed25519 vs ML-DSA</a>
+<a href="/guides/how-to-generate-a-csr.html">How to generate a CSR</a>
+</div>
+<footer><a href="/">CSR Studio</a> — free CSR generator &amp; quantum-readiness scanner.</footer>
+</div>
+</body>
+</html>

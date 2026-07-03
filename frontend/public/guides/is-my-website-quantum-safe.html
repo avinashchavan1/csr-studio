@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Is My Website Quantum-Safe? Check in Seconds (HNDL) | CSR Studio</title>
+<meta name="description" content="Find out if your website's TLS certificate is vulnerable to quantum computers. Learn what 'harvest now, decrypt later' means and scan any domain free for a post-quantum risk grade." />
+<meta name="keywords" content="is my website quantum safe, harvest now decrypt later, quantum readiness scan, post-quantum TLS, quantum vulnerable certificate, HNDL risk, check quantum safe" />
+<link rel="canonical" href="https://pqcert.avinashchavan.com/guides/is-my-website-quantum-safe.html" />
+<meta name="robots" content="index, follow, max-image-preview:large" />
+<meta property="og:type" content="article" />
+<meta property="og:title" content="Is my website quantum-safe? Check in seconds" />
+<meta property="og:description" content="Why RSA/ECDSA break under quantum computers, what 'harvest now, decrypt later' means, and how to grade your own site free." />
+<meta property="og:url" content="https://pqcert.avinashchavan.com/guides/is-my-website-quantum-safe.html" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"Is my website vulnerable to quantum computers?","acceptedAnswer":{"@type":"Answer","text":"If your TLS certificate uses RSA or ECDSA — which nearly all do — then yes, it is theoretically breakable by a large quantum computer running Shor's algorithm. Post-quantum algorithms like ML-DSA are not."}},
+{"@type":"Question","name":"What is harvest now, decrypt later?","acceptedAnswer":{"@type":"Answer","text":"An attacker records your encrypted traffic today and stores it. When a cryptographically-relevant quantum computer becomes available, they decrypt it retroactively. Data that must stay secret for years is at risk now."}},
+{"@type":"Question","name":"How do I check if my site is quantum-safe?","acceptedAnswer":{"@type":"Answer","text":"Use a quantum-readiness scanner: enter your domain, it fetches the live TLS certificate and grades the cryptography for quantum risk with a migration recommendation."}}
+]}
+</script>
+<style>
+:root{--bg:#f4f6f9;--surface:#fff;--text:#0f1b2d;--muted:#5b6b82;--accent:#2563eb;--border:#e3e8ef;--warn:#b45309;--danger:#dc2626}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.7}
+.wrap{max-width:760px;margin:0 auto;padding:40px 22px}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+nav.bc{font-size:14px;color:var(--muted);margin-bottom:26px}
+h1{font-size:31px;line-height:1.18;margin:0 0 14px}h2{font-size:22px;margin:34px 0 10px}
+p,li{font-size:16px}.lede{font-size:18px;color:var(--muted)}
+.scan{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;margin:22px 0;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.scan input{flex:1;min-width:220px;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:15px;font-family:ui-monospace,monospace}
+.scan button{background:var(--accent);color:#fff;border:0;padding:11px 20px;border-radius:8px;font-weight:600;cursor:pointer;font-size:15px}
+.cta{display:inline-block;margin:8px 0;background:var(--accent);color:#fff;padding:11px 20px;border-radius:8px;font-weight:600}.cta:hover{text-decoration:none;background:#1d4ed8}
+footer{margin-top:44px;padding-top:20px;border-top:1px solid var(--border);color:var(--muted);font-size:14px}
+.rel a{display:block;margin:4px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav class="bc"><a href="/">CSR Studio</a> › <a href="/guides/">Guides</a> › Is my website quantum-safe?</nav>
+<h1>Is my website quantum-safe?</h1>
+<p class="lede">Almost every website on the internet uses RSA or ECDSA for its TLS certificate — and both are breakable by a sufficiently large quantum computer. Here's what that means for you, and how to check your own site in seconds.</p>
+
+<div class="scan">
+  <input id="host" type="text" placeholder="yourdomain.com" />
+  <button onclick="var h=document.getElementById('host').value.trim().replace(/^https?:\/\//,'').replace(/\/.*$/,'');if(h)location.href='/?scan='+encodeURIComponent(h)">Scan my site</button>
+</div>
+
+<h2>Why RSA and ECDSA aren't quantum-safe</h2>
+<p>The security of RSA rests on factoring large numbers being hard; ECDSA rests on the elliptic-curve discrete-log problem. In 1994, Peter Shor showed a quantum computer can solve <em>both</em> efficiently. A large, fault-tolerant quantum computer would therefore recover the private key from a public key — forging signatures and decrypting sessions. Such a machine doesn't exist publicly yet, but serious estimates put it within the lifetime of data you're protecting today.</p>
+
+<h2>"Harvest now, decrypt later" (HNDL)</h2>
+<p>You don't need the quantum computer to exist <em>today</em> to be at risk <em>today</em>. An adversary can <strong>record your encrypted traffic now</strong> and simply wait. When quantum hardware matures, they decrypt the archive. Anything that must remain confidential for 5–15 years — health, financial, government, IP — is already exposed to this strategy.</p>
+
+<h2>How to check your site</h2>
+<p>A quantum-readiness scan fetches your live TLS certificate and grades its cryptography:</p>
+<ol>
+<li>Enter your domain above (or in the <a href="/?scan=example.com">Quantum Scan</a> tab).</li>
+<li>Get a letter grade (A+ for post-quantum, down to F for broken classical).</li>
+<li>See your key algorithm, HNDL risk level, and a concrete migration recommendation.</li>
+</ol>
+
+<h2>What to do about it</h2>
+<ul>
+<li><strong>Inventory</strong> your certificates and their algorithms — you can't migrate what you can't see.</li>
+<li><strong>Adopt crypto-agility:</strong> be ready to swap algorithms without re-architecting.</li>
+<li><strong>Start with hybrid:</strong> issue a classical certificate for today plus a <a href="/guides/post-quantum-cryptography-tls.html">post-quantum (ML-DSA)</a> one to prepare. CSR Studio generates the matched pair in one click.</li>
+</ul>
+
+<a class="cta" href="/?scan=">Scan any domain now →</a>
+
+<h2>Related guides</h2>
+<div class="rel">
+<a href="/guides/post-quantum-cryptography-tls.html">Post-quantum cryptography for TLS</a>
+<a href="/guides/rsa-vs-ecdsa-vs-ml-dsa.html">RSA vs ECDSA vs Ed25519 vs ML-DSA</a>
+<a href="/guides/how-to-generate-a-csr.html">How to generate a CSR</a>
+</div>
+<footer><a href="/">CSR Studio</a> — free CSR generator &amp; quantum-readiness scanner.</footer>
+</div>
+</body>
+</html>

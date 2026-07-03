@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>How to Generate a CSR Online (No OpenSSL) — Step by Step | CSR Studio</title>
+<meta name="description" content="Generate a Certificate Signing Request (CSR) in your browser: set the Common Name, SANs, and key algorithm, then download the CSR and private key. No OpenSSL, no signup." />
+<meta name="keywords" content="how to generate a CSR, create CSR online, CSR generator, certificate signing request, generate CSR without openssl, CSR for SSL certificate" />
+<link rel="canonical" href="https://pqcert.avinashchavan.com/guides/how-to-generate-a-csr.html" />
+<meta name="robots" content="index, follow, max-image-preview:large" />
+<meta property="og:type" content="article" />
+<meta property="og:title" content="How to Generate a CSR Online — Step by Step" />
+<meta property="og:description" content="Create a Certificate Signing Request in your browser in under a minute — CN, SANs, RSA/ECDSA/post-quantum keys, download CSR + key." />
+<meta property="og:url" content="https://pqcert.avinashchavan.com/guides/how-to-generate-a-csr.html" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"HowTo","name":"How to generate a CSR (Certificate Signing Request) online",
+"description":"Create a PKCS#10 Certificate Signing Request with the correct subject, Subject Alternative Names, and key algorithm.",
+"totalTime":"PT2M","tool":[{"@type":"HowToTool","name":"CSR Studio (free web tool)"}],
+"step":[
+{"@type":"HowToStep","name":"Enter the Common Name","text":"Type the primary domain, e.g. example.com. It is optional if you use SAN-only certificates."},
+{"@type":"HowToStep","name":"Add Subject Alternative Names","text":"Add every hostname or IP the certificate must cover. The CN is included automatically."},
+{"@type":"HowToStep","name":"Choose a key algorithm","text":"Pick RSA 2048/3072/4096, ECDSA, Ed25519, or a post-quantum algorithm such as ML-DSA."},
+{"@type":"HowToStep","name":"Generate and download","text":"Generate the CSR and private key, then download both. Submit the CSR to your Certificate Authority and keep the key private."}
+]}
+</script>
+<style>
+:root{--bg:#f4f6f9;--surface:#fff;--text:#0f1b2d;--muted:#5b6b82;--accent:#2563eb;--border:#e3e8ef;--code:#0f1b2d}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.7}
+.wrap{max-width:760px;margin:0 auto;padding:40px 22px}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+nav.bc{font-size:14px;color:var(--muted);margin-bottom:26px}
+h1{font-size:31px;line-height:1.18;margin:0 0 14px}h2{font-size:22px;margin:34px 0 10px}h3{font-size:18px;margin:24px 0 6px}
+p,li{font-size:16px}.lede{font-size:18px;color:var(--muted)}
+ol li,ul li{margin-bottom:8px}
+code{background:#eef2f7;border:1px solid var(--border);border-radius:5px;padding:1px 6px;font-family:ui-monospace,monospace;font-size:.9em}
+.note{background:#e8efff;border:1px solid #c9d9ff;border-radius:10px;padding:14px 16px;font-size:15px;margin:20px 0}
+.cta{display:inline-block;margin:8px 0 8px;background:var(--accent);color:#fff;padding:11px 20px;border-radius:8px;font-weight:600}
+.cta:hover{text-decoration:none;background:#1d4ed8}
+footer{margin-top:44px;padding-top:20px;border-top:1px solid var(--border);color:var(--muted);font-size:14px}
+.rel a{display:block;margin:4px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav class="bc"><a href="/">CSR Studio</a> › <a href="/guides/">Guides</a> › How to generate a CSR</nav>
+<h1>How to generate a CSR (online, no OpenSSL)</h1>
+<p class="lede">A Certificate Signing Request (CSR) is what you send to a Certificate Authority (CA) to get an SSL/TLS certificate. Here's how to create a correct one in about a minute — right in your browser.</p>
+
+<a class="cta" href="/">Open the CSR generator →</a>
+
+<h2>What a CSR actually contains</h2>
+<p>A CSR is a <strong>PKCS#10</strong> message that bundles three things: your <strong>public key</strong>, your <strong>identity</strong> (domain and optional organization details), and a <strong>self-signature</strong> proving you hold the matching private key. The CA reads it, validates you, and issues a certificate for that public key. Your <strong>private key never leaves your side</strong> and is never sent to the CA.</p>
+
+<h2>Step 1 — Common Name (CN)</h2>
+<p>The CN is the primary domain the certificate secures, e.g. <code>example.com</code> or <code>*.example.com</code> for a wildcard. Modern certificates are validated against the SAN list, not the CN, so the CN is now <strong>optional</strong> — you can generate a SAN-only CSR. If you do set a CN, it's automatically copied into the SAN list for you.</p>
+
+<h2>Step 2 — Subject Alternative Names (SANs)</h2>
+<p>Add every hostname the certificate must cover: <code>www.example.com</code>, <code>api.example.com</code>, and so on. You can also add IP addresses. Browsers <strong>ignore the CN and only trust SANs</strong>, so this step is the one that actually matters. In CSR Studio the SAN type (DNS, IP, email, URI) is auto-detected, and duplicates are removed.</p>
+
+<h2>Step 3 — Choose a key algorithm</h2>
+<ul>
+<li><strong>RSA 2048</strong> — the safe default; universally accepted by CAs and servers.</li>
+<li><strong>RSA 3072/4096</strong> — stronger, slightly slower handshakes.</li>
+<li><strong>ECDSA (P-256/384)</strong> — smaller, faster; excellent modern choice.</li>
+<li><strong>Ed25519</strong> — modern EdDSA; compact and fast where supported.</li>
+<li><strong>Post-quantum (ML-DSA / SLH-DSA / Falcon)</strong> — quantum-resistant; for internal CAs and future-proofing today.</li>
+</ul>
+<p>Not sure which? See <a href="/guides/rsa-vs-ecdsa-vs-ml-dsa.html">RSA vs ECDSA vs Ed25519 vs ML-DSA</a>.</p>
+
+<h2>Step 4 — Generate and download</h2>
+<p>Generate the request. You'll get two files:</p>
+<ol>
+<li><strong><code>.csr</code></strong> — submit this to your CA (Let's Encrypt, DigiCert, Sectigo, or an internal CA).</li>
+<li><strong><code>.key</code></strong> — your private key. Keep it secret and access-controlled; you cannot recover it if lost.</li>
+</ol>
+<div class="note"><strong>Security tip:</strong> never email or commit your private key. Store it on the server that will use it, out of logs and version control.</div>
+
+<h2>The equivalent OpenSSL command</h2>
+<p>Prefer the CLI? A typical request looks like:</p>
+<p><code>openssl req -new -newkey rsa:2048 -nodes -sha256 -keyout example.com.key -out example.com.csr -subj "/CN=example.com" -addext "subjectAltName=DNS:example.com,DNS:www.example.com"</code></p>
+<p>CSR Studio shows this exact command live as you fill the form, so you can copy it or just download the result directly.</p>
+
+<h2>After you have the certificate</h2>
+<p>Once the CA issues your certificate, install it <em>together with the private key</em> on your web server or load balancer. Want to double-check a request before submitting? <a href="/guides/how-to-decode-a-csr.html">Decode and verify the CSR</a> first.</p>
+
+<a class="cta" href="/">Generate your CSR now →</a>
+
+<h2>Related guides</h2>
+<div class="rel">
+<a href="/guides/rsa-vs-ecdsa-vs-ml-dsa.html">RSA vs ECDSA vs Ed25519 vs ML-DSA</a>
+<a href="/guides/how-to-decode-a-csr.html">How to decode and verify a CSR</a>
+<a href="/guides/is-my-website-quantum-safe.html">Is my website quantum-safe?</a>
+</div>
+<footer><a href="/">CSR Studio</a> — free CSR generator &amp; quantum-readiness scanner.</footer>
+</div>
+</body>
+</html>
