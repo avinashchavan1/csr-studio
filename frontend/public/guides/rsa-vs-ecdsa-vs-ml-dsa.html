@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RSA vs ECDSA vs Ed25519 vs ML-DSA — Which Key to Use (2026) | CSR Studio</title>
+<meta name="description" content="Compare RSA, ECDSA, Ed25519 and post-quantum ML-DSA for TLS certificates: performance, key/signature size, compatibility, and quantum resistance — with clear recommendations." />
+<meta name="keywords" content="RSA vs ECDSA, ECDSA vs Ed25519, ML-DSA, RSA vs ML-DSA, best key algorithm for SSL, post-quantum signature, TLS key algorithm comparison" />
+<link rel="canonical" href="https://pqcert.avinashchavan.com/guides/rsa-vs-ecdsa-vs-ml-dsa.html" />
+<meta name="robots" content="index, follow, max-image-preview:large" />
+<meta property="og:type" content="article" />
+<meta property="og:title" content="RSA vs ECDSA vs Ed25519 vs ML-DSA — which key should you use?" />
+<meta property="og:description" content="Performance, size, compatibility and quantum resistance compared, with clear recommendations for TLS certificates." />
+<meta property="og:url" content="https://pqcert.avinashchavan.com/guides/rsa-vs-ecdsa-vs-ml-dsa.html" />
+<style>
+:root{--bg:#f4f6f9;--surface:#fff;--text:#0f1b2d;--muted:#5b6b82;--accent:#2563eb;--border:#e3e8ef}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.7}
+.wrap{max-width:760px;margin:0 auto;padding:40px 22px}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+nav.bc{font-size:14px;color:var(--muted);margin-bottom:26px}
+h1{font-size:31px;line-height:1.18;margin:0 0 14px}h2{font-size:22px;margin:34px 0 10px}
+p,li{font-size:16px}.lede{font-size:18px;color:var(--muted)}
+table{width:100%;border-collapse:collapse;margin:18px 0;font-size:14.5px;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border)}th{background:#eef2f7}
+code{background:#eef2f7;border:1px solid var(--border);border-radius:5px;padding:1px 6px;font-family:ui-monospace,monospace;font-size:.9em}
+.cta{display:inline-block;margin:8px 0;background:var(--accent);color:#fff;padding:11px 20px;border-radius:8px;font-weight:600}.cta:hover{text-decoration:none;background:#1d4ed8}
+footer{margin-top:44px;padding-top:20px;border-top:1px solid var(--border);color:var(--muted);font-size:14px}
+.rel a{display:block;margin:4px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav class="bc"><a href="/">CSR Studio</a> › <a href="/guides/">Guides</a> › RSA vs ECDSA vs ML-DSA</nav>
+<h1>RSA vs ECDSA vs Ed25519 vs ML-DSA: which key should you use?</h1>
+<p class="lede">Your certificate's key algorithm decides its speed, size, compatibility, and — increasingly — whether it survives the arrival of quantum computers. Here's a straight comparison.</p>
+
+<h2>At a glance</h2>
+<table>
+<tr><th>Algorithm</th><th>Type</th><th>Speed</th><th>Sig size</th><th>Compatibility</th><th>Quantum-safe</th></tr>
+<tr><td>RSA 2048</td><td>Classical</td><td>Slow keygen, slow sign</td><td>256 B</td><td>Universal</td><td>❌</td></tr>
+<tr><td>ECDSA P-256</td><td>Classical</td><td>Fast</td><td>~64–72 B</td><td>Very broad</td><td>❌</td></tr>
+<tr><td>Ed25519</td><td>Classical</td><td>Very fast</td><td>64 B</td><td>Good (modern)</td><td>❌</td></tr>
+<tr><td>ML-DSA-65</td><td>Post-quantum</td><td>Fast</td><td>~3.3 KB</td><td>New / limited</td><td>✅</td></tr>
+</table>
+
+<h2>RSA — the universal default</h2>
+<p>RSA is the safest bet for <strong>maximum compatibility</strong>: every CA and every client accepts it. Downsides are size and speed — keys and operations are large, and key generation for RSA-4096 takes noticeable time. Use <strong>RSA 2048</strong> unless a policy requires 3072/4096.</p>
+
+<h2>ECDSA — small and fast</h2>
+<p>Elliptic-curve keys give equivalent security to RSA at a fraction of the size (a P-256 key ≈ RSA-3072 in strength). Handshakes are faster and certificates smaller. Compatibility is excellent today. <strong>ECDSA P-256 is the best modern default</strong> for public TLS.</p>
+
+<h2>Ed25519 — the modern favorite</h2>
+<p>Ed25519 (EdDSA on Curve25519) is fast, has small fixed-size signatures, and avoids several footguns of ECDSA. Support is widespread in modern stacks but slightly less universal than ECDSA for public CAs. Great for internal services and SSH-adjacent use.</p>
+
+<h2>ML-DSA — the quantum-resistant future</h2>
+<p><strong>ML-DSA</strong> (FIPS 204, formerly CRYSTALS-Dilithium) is NIST's standardized post-quantum signature. Unlike RSA and ECDSA, it is <strong>not broken by Shor's algorithm</strong> on a quantum computer. The trade-off is larger keys and signatures (kilobytes, not bytes). Public CAs and browsers don't broadly accept PQC certificates yet, but ML-DSA is ideal for <strong>internal CAs, testing, and crypto-agility planning now</strong>. See <a href="/guides/post-quantum-cryptography-tls.html">post-quantum cryptography for TLS</a>.</p>
+
+<h2>Our recommendation</h2>
+<ul>
+<li><strong>Public website today:</strong> ECDSA P-256 (or RSA 2048 for maximum reach).</li>
+<li><strong>Internal / modern stack:</strong> Ed25519 or ECDSA.</li>
+<li><strong>Future-proofing / regulated:</strong> generate a <strong>hybrid</strong> pair — a classical CSR for today's CA plus an ML-DSA CSR for crypto-agility.</li>
+</ul>
+
+<a class="cta" href="/">Generate any of these with CSR Studio →</a>
+
+<h2>Related guides</h2>
+<div class="rel">
+<a href="/guides/how-to-generate-a-csr.html">How to generate a CSR</a>
+<a href="/guides/post-quantum-cryptography-tls.html">Post-quantum cryptography for TLS</a>
+<a href="/guides/is-my-website-quantum-safe.html">Is my website quantum-safe?</a>
+</div>
+<footer><a href="/">CSR Studio</a> — free CSR generator &amp; quantum-readiness scanner.</footer>
+</div>
+</body>
+</html>
