@@ -35,7 +35,7 @@ export function QuantumScanView({ push, onGenerateHybrid, seedHost }) {
       setScannedHost(payload.host || null);
       // reflect a host scan in the URL so it's shareable
       if (payload.host) {
-        try { history.replaceState(null, "", location.pathname + "?scan=" + encodeURIComponent(payload.host)); } catch (e) {}
+        try { history.replaceState(null, "", "/quantum?scan=" + encodeURIComponent(payload.host)); } catch (e) {}
       }
       push("Scanned " + (r.target || val));
     } catch (e) {

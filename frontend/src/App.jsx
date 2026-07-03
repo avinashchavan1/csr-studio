@@ -28,9 +28,23 @@ const NAV = [
   { id: "server", label: "Server / API", icon: "server" }
 ];
 
+// URL routing (History API, no router lib)
+const VIEW_PATH = { generate: "/", decode: "/decode", quantum: "/quantum", compare: "/compare", history: "/history", server: "/server" };
+const PATH_VIEW = { "/decode": "decode", "/quantum": "quantum", "/compare": "compare", "/history": "history", "/server": "server" };
+function pathToView() {
+  const p = (location.pathname || "/").replace(/\/+$/, "") || "/";
+  return PATH_VIEW[p] || "generate";
+}
+function initialView() {
+  const q = new URLSearchParams(location.search);
+  if (q.get("share")) return "decode";
+  if (q.get("scan")) return "quantum";
+  return pathToView();
+}
+
 export default function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
-  const [view, setView] = useState("generate");
+  const [view, setView] = useState(initialView);
   const [navOpen, setNavOpen] = useState(false);
   const [history, setHistory] = useState([]);
   const [seed, setSeed] = useState(null);
@@ -88,7 +102,18 @@ export default function App() {
     go("generate");
   }
 
-  function go(v) { setView(v); setNavOpen(false); }
+  function go(v) {
+    setView(v); setNavOpen(false);
+    const path = VIEW_PATH[v] || "/";
+    try { if (location.pathname !== path || location.search) history.pushState({ v }, "", path); } catch (e) {}
+  }
+
+  // browser back/forward → sync view from the URL
+  useEffect(() => {
+    const onPop = () => setView(pathToView());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   const accentChoices = ACCENTS[t.look] || ACCENTS.slate;
   const current = NAV.find(n => n.id === view);
@@ -104,7 +129,9 @@ export default function App() {
   return (
     <div className="app">
       <aside className={"sidebar" + (navOpen ? " open" : "")}>
-        <div className="brand">
+        <div className="brand" onClick={() => go("generate")} style={{ cursor: "pointer" }}
+          role="link" tabIndex={0} title="Home"
+          onKeyDown={e => { if (e.key === "Enter") go("generate"); }}>
           <span className="brand-mark"><Icon name="shield" /></span>
           <div>
             <div className="brand-name">CSR Studio</div>
