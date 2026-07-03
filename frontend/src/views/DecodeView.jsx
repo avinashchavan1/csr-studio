@@ -20,13 +20,21 @@ export function DecodeView({ push, seedCsr }) {
   useEffect(() => { if (seedCsr) { setText(seedCsr); run(seedCsr); } /* eslint-disable-next-line */ }, [seedCsr]);
 
   async function run(input, keyInput) {
-    const pem = (input != null ? input : text).trim();
+    const raw = (input != null ? input : text).trim();
     const kpem = (keyInput != null ? keyInput : keyText).trim();
     setErr(""); setDecoded(null); setMatch(null); setLint(null); setQuantum(null);
-    if (!pem) { setErr("Paste a CSR first."); return; }
-    if (!/BEGIN CERTIFICATE REQUEST/.test(pem)) {
-      setErr("This doesn't look like a CSR. It should start with “-----BEGIN CERTIFICATE REQUEST-----”."); return;
+    if (!raw) { setErr("Paste a CSR first."); return; }
+    // Accept either a PEM block or a bare base64 body (no -----BEGIN----- armor).
+    const looksPem = /BEGIN CERTIFICATE REQUEST/.test(raw);
+    const stripped = raw.replace(/\s+/g, "");
+    const looksB64 = !looksPem && /^[A-Za-z0-9+/]+={0,2}$/.test(stripped) && stripped.length >= 64;
+    if (!looksPem && !looksB64) {
+      setErr("This doesn't look like a CSR. Paste a PEM block (“-----BEGIN CERTIFICATE REQUEST-----”) or its base64 body."); return;
     }
+    // Normalize bare base64 into a PEM block so every downstream consumer
+    // (decode, lint, quantum scan, in-browser key match, raw display) agrees.
+    const pem = looksPem ? raw
+      : `-----BEGIN CERTIFICATE REQUEST-----\n${stripped.replace(/(.{64})/g, "$1\n").replace(/\n$/, "")}\n-----END CERTIFICATE REQUEST-----`;
     setBusy(true);
     try {
       const res = await api.decode(pem);
