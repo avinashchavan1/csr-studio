@@ -247,12 +247,30 @@ function decodeManual(pem) {
   return { subject, sans, bits: null, keyKind, keyDetail, verified: null, sigAlg: keyKind === "ECDSA" ? "ECDSA (signature not re-checked)" : "", raw: pem.trim() };
 }
 
+// Turn a raw parse failure into a message a human can act on.
+function decodeError(input) {
+  const up = (input || "").toUpperCase();
+  if (!input || !input.trim()) return "Nothing to decode. Paste a certificate signing request.";
+  if (up.includes("PRIVATE KEY-----")) return "That's a private key, not a CSR — never paste a private key here. Paste your “-----BEGIN CERTIFICATE REQUEST-----” block instead.";
+  if (up.includes("BEGIN") && up.includes("CERTIFICATE-----") && !up.includes("CERTIFICATE REQUEST")) return "That looks like an issued certificate, not a certificate signing request. Paste a “-----BEGIN CERTIFICATE REQUEST-----” block instead.";
+  if (up.includes("PUBLIC KEY-----")) return "That's a public key, not a CSR. Paste a “-----BEGIN CERTIFICATE REQUEST-----” block instead.";
+  if (up.includes("-----BEGIN") && !up.includes("CERTIFICATE REQUEST")) return "This PEM block isn't a certificate signing request. A CSR is labelled “-----BEGIN CERTIFICATE REQUEST-----”.";
+  const stripped = (input || "").replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
+  const offenders = stripped.replace(/[A-Za-z0-9+/=]/g, "");
+  if (offenders) return "This doesn't look like a CSR. It contains characters that aren't valid base64 (e.g. " + [...new Set(offenders)].slice(0, 6).join("") + "). Paste only the request — a PEM block or its base64 body.";
+  return "The text decoded, but it isn't a valid PKCS#10 certificate signing request. It may be truncated or corrupted — re-copy the complete request and try again.";
+}
+
 export function decode(pem) {
   let csr;
   try {
     csr = forge.pki.certificationRequestFromPem(pem);
   } catch (e) {
-    return decodeManual(pem);
+    try {
+      return decodeManual(pem);
+    } catch (inner) {
+      throw new Error(decodeError(pem));
+    }
   }
   const get = (sn, n) => {
     const f = csr.subject.getField(sn) || (n && csr.subject.getField(n));

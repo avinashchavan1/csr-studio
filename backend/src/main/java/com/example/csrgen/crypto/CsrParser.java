@@ -40,11 +40,77 @@ public class CsrParser {
     private static final DefaultAlgorithmNameFinder ALGO_FINDER = new DefaultAlgorithmNameFinder();
 
     public PKCS10CertificationRequest decode(String pem) {
-        try {
-            return new PKCS10CertificationRequest(PemUtil.pemToDer(pem));
-        } catch (IOException | IllegalArgumentException e) {
-            throw new CryptoException("Could not parse CSR: " + e.getMessage(), e);
+        String input = pem == null ? "" : pem.trim();
+        if (input.isEmpty()) {
+            throw new CryptoException(
+                    "Nothing to decode. Paste a certificate signing request — either the full "
+                    + "PEM block (starting with \"-----BEGIN CERTIFICATE REQUEST-----\") or just its base64 body.");
         }
+
+        // Guard against the common mistake of pasting the wrong PEM object, so the
+        // user gets a precise \"you pasted an X, not a CSR\" message instead of a
+        // generic ASN.1 parse failure.
+        String upper = input.toUpperCase();
+        if (upper.contains("PRIVATE KEY-----")) {
+            throw new CryptoException(
+                    "That's a private key, not a CSR — and a private key should never be pasted here. "
+                    + "Paste your certificate signing request (\"-----BEGIN CERTIFICATE REQUEST-----\") instead.");
+        }
+        if (upper.contains("BEGIN") && upper.contains("CERTIFICATE-----")
+                && !upper.contains("CERTIFICATE REQUEST")) {
+            throw new CryptoException(
+                    "That looks like an issued X.509 certificate, not a certificate signing request. "
+                    + "Paste a \"-----BEGIN CERTIFICATE REQUEST-----\" block instead.");
+        }
+        if (upper.contains("PUBLIC KEY-----")) {
+            throw new CryptoException(
+                    "That's a public key, not a CSR. Paste a \"-----BEGIN CERTIFICATE REQUEST-----\" block instead.");
+        }
+        if (upper.contains("-----BEGIN") && !upper.contains("CERTIFICATE REQUEST")
+                && !upper.contains("NEW CERTIFICATE REQUEST")) {
+            throw new CryptoException(
+                    "This PEM block isn't a certificate signing request. A CSR is labelled "
+                    + "\"-----BEGIN CERTIFICATE REQUEST-----\".");
+        }
+
+        byte[] der;
+        try {
+            der = PemUtil.pemToDer(input);
+        } catch (IllegalArgumentException e) {
+            throw new CryptoException(base64Hint(input), e);
+        }
+        if (der == null || der.length == 0) {
+            throw new CryptoException(
+                    "The request decoded to no data — the text is probably truncated. "
+                    + "Copy the entire CSR (including the last line) and try again.");
+        }
+
+        try {
+            return new PKCS10CertificationRequest(der);
+        } catch (IOException | RuntimeException e) {
+            throw new CryptoException(
+                    "The text decoded, but it isn't a valid PKCS#10 certificate signing request. "
+                    + "It may be truncated, corrupted, or a different kind of file (a certificate or key). "
+                    + "Re-copy the complete request and try again.", e);
+        }
+    }
+
+    /**
+     * Explains why a bare (un-armored) input couldn't be base64-decoded, in plain
+     * language: stray non-base64 characters vs. a length/padding problem.
+     */
+    private String base64Hint(String input) {
+        String cleaned = input.replaceAll("\\s+", "");
+        String offenders = cleaned.replaceAll("[A-Za-z0-9+/=]", "");
+        if (!offenders.isEmpty()) {
+            String sample = offenders.chars().distinct().limit(6)
+                    .collect(StringBuilder::new, (sb, c) -> sb.append((char) c), StringBuilder::append)
+                    .toString();
+            return "This doesn't look like a CSR. It contains characters that aren't valid base64 (for example: "
+                    + sample + "). Paste only the certificate request — a PEM block, or its base64 body with no extra text.";
+        }
+        return "The base64 body looks incomplete or corrupted (its length isn't a valid multiple of 4). "
+                + "Copy the entire request and make sure nothing was cut off.";
     }
 
     public CsrParseResponse parse(String pem) {
@@ -188,7 +254,9 @@ public class CsrParser {
                     .setProvider(BouncyCastleProvider.PROVIDER_NAME)
                     .getPublicKey();
         } catch (Exception e) {
-            throw new CryptoException("Could not read CSR public key: " + e.getMessage(), e);
+            throw new CryptoException(
+                    "The CSR was read, but its public key uses an algorithm this server can't decode. "
+                    + "Supported: RSA, ECDSA, Ed25519, and post-quantum ML-DSA / SLH-DSA / Falcon.", e);
         }
     }
 

@@ -114,4 +114,41 @@ class CsrContractControllerTest {
                 .andExpect(jsonPath("$.error.message").exists());
         assertThat(true).isTrue();
     }
+
+    /** A CSR with the PEM armor stripped off (bare base64 body) still decodes. */
+    @Test
+    void decodeAcceptsBareBase64Body() throws Exception {
+        MvcResult gen = mvc.perform(post("/csr/generate")
+                        .contentType(MediaType.APPLICATION_JSON).content(GEN_RSA))
+                .andExpect(status().isOk()).andReturn();
+        String csr = json.readTree(gen.getResponse().getContentAsString()).get("csr").asText();
+        String bare = csr.replaceAll("-----[^-]+-----", "").replaceAll("\\s+", "");
+
+        String body = json.writeValueAsString(java.util.Map.of("csr", bare));
+        mvc.perform(post("/csr/decode").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.subject.commonName").value("shop.example.com"))
+                .andExpect(jsonPath("$.signature.valid").value(true));
+    }
+
+    /** Wrong-object and malformed inputs must yield actionable, human-readable messages. */
+    @Test
+    void decodeGivesFriendlyMessages() throws Exception {
+        assertDecodeError("-----BEGIN PRIVATE KEY-----\nMIIabc\n-----END PRIVATE KEY-----",
+                "private key");
+        assertDecodeError("-----BEGIN CERTIFICATE-----\nMIIabc\n-----END CERTIFICATE-----",
+                "certificate");
+        assertDecodeError("-----BEGIN PUBLIC KEY-----\nMIIabc\n-----END PUBLIC KEY-----",
+                "public key");
+        assertDecodeError("hello this is not a csr!!! @@@",
+                "base64");
+    }
+
+    private void assertDecodeError(String csr, String expectedSubstring) throws Exception {
+        String body = json.writeValueAsString(java.util.Map.of("csr", csr));
+        mvc.perform(post("/csr/decode").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message")
+                        .value(org.hamcrest.Matchers.containsStringIgnoringCase(expectedSubstring)));
+    }
 }
