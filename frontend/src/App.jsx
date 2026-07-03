@@ -134,8 +134,8 @@ export default function App() {
           onKeyDown={e => { if (e.key === "Enter") go("generate"); }}>
           <span className="brand-mark"><Icon name="shield" /></span>
           <div>
-            <div className="brand-name">CSR Studio</div>
-            <div className="brand-sub">certificate signing requests</div>
+            <div className="brand-name">PQCert</div>
+            <div className="brand-sub">post-quantum CSR &amp; cert toolkit</div>
           </div>
         </div>
         <nav className="nav">

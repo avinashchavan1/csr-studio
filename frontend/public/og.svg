@@ -17,7 +17,7 @@
   <g transform="translate(80,72)">
     <rect width="56" height="56" rx="14" fill="#2563eb"/>
     <path d="M28 12 l16 6 v12 c0 10-6.8 17.2-16 20 -9.2-2.8-16-10-16-20 V18 z" fill="none" stroke="#fff" stroke-width="3.2" stroke-linejoin="round"/>
-    <text x="74" y="26" fill="#e6edf6" font-size="26" font-weight="700">CSR Studio</text>
+    <text x="74" y="26" fill="#e6edf6" font-size="26" font-weight="700">PQCert</text>
     <text x="74" y="50" fill="#7dd3fc" font-size="16" font-family="ui-monospace, monospace">post-quantum certificate tooling</text>
   </g>
   <!-- headline -->

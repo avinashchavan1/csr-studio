@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>How to Decode and Verify a CSR (PKCS#10) | CSR Studio</title>
+<title>How to Decode and Verify a CSR (PKCS#10) | PQCert</title>
 <meta name="description" content="Decode any Certificate Signing Request to read its subject, SANs, key algorithm and signature — and verify the CSR matches your private key. Free online CSR decoder." />
 <meta name="keywords" content="decode CSR, CSR decoder, verify CSR, read CSR, check CSR contents, CSR to text, PKCS#10 decoder, CSR key match" />
 <link rel="canonical" href="https://pqcert.avinashchavan.com/guides/how-to-decode-a-csr.html" />
@@ -28,7 +28,7 @@ footer{margin-top:44px;padding-top:20px;border-top:1px solid var(--border);color
 </head>
 <body>
 <div class="wrap">
-<nav class="bc"><a href="/">CSR Studio</a> › <a href="/guides/">Guides</a> › How to decode a CSR</nav>
+<nav class="bc"><a href="/">PQCert</a> › <a href="/guides/">Guides</a> › How to decode a CSR</nav>
 <h1>How to decode and verify a CSR</h1>
 <p class="lede">Before you submit a Certificate Signing Request — or when you inherit one — it pays to read exactly what's inside. Here's how to decode a CSR and confirm it matches your private key.</p>
 
@@ -50,7 +50,7 @@ footer{margin-top:44px;padding-top:20px;border-top:1px solid var(--border);color
 <li>Paste the PEM block (starts with <code>-----BEGIN CERTIFICATE REQUEST-----</code>).</li>
 <li>Read the parsed subject, SANs, key, signature validity and extensions.</li>
 </ol>
-<p>CSR Studio also runs a <strong>compliance lint</strong> — flagging weak keys, missing SANs, or deprecated hashes before a CA rejects them.</p>
+<p>PQCert also runs a <strong>compliance lint</strong> — flagging weak keys, missing SANs, or deprecated hashes before a CA rejects them.</p>
 
 <h2>Verify the CSR matches your private key</h2>
 <p>A common renewal mistake is pairing a CSR with the wrong key. In the decoder, expand "check a private key matches this CSR" and paste your key — the match is computed <strong>locally in your browser</strong>, so the key is never sent anywhere. You'll get a clear "key pair matches / does not match" verdict.</p>
@@ -67,7 +67,7 @@ footer{margin-top:44px;padding-top:20px;border-top:1px solid var(--border);color
 <a href="/guides/rsa-vs-ecdsa-vs-ml-dsa.html">RSA vs ECDSA vs Ed25519 vs ML-DSA</a>
 <a href="/guides/is-my-website-quantum-safe.html">Is my website quantum-safe?</a>
 </div>
-<footer><a href="/">CSR Studio</a> — free CSR generator &amp; quantum-readiness scanner.</footer>
+<footer><a href="/">PQCert</a> — free CSR generator &amp; quantum-readiness scanner.</footer>
 </div>
 </body>
 </html>
