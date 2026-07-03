@@ -33,7 +33,8 @@ const VIEW_PATH = { generate: "/", decode: "/decode", quantum: "/quantum", compa
 const PATH_VIEW = { "/decode": "decode", "/quantum": "quantum", "/compare": "compare", "/history": "history", "/server": "server" };
 function pathToView() {
   const p = (location.pathname || "/").replace(/\/+$/, "") || "/";
-  return PATH_VIEW[p] || "generate";
+  if (p === "/") return "generate";
+  return PATH_VIEW[p] || "notfound";
 }
 function initialView() {
   const q = new URLSearchParams(location.search);
@@ -105,7 +106,8 @@ export default function App() {
   function go(v) {
     setView(v); setNavOpen(false);
     const path = VIEW_PATH[v] || "/";
-    try { if (location.pathname !== path || location.search) history.pushState({ v }, "", path); } catch (e) {}
+    // window.history — NOT the `history` state var above (which shadows it)
+    try { if (location.pathname !== path || location.search) window.history.pushState({ v }, "", path); } catch (e) {}
   }
 
   // browser back/forward → sync view from the URL
@@ -116,14 +118,15 @@ export default function App() {
   }, []);
 
   const accentChoices = ACCENTS[t.look] || ACCENTS.slate;
-  const current = NAV.find(n => n.id === view);
+  const current = NAV.find(n => n.id === view) || { label: "Page not found" };
   const subtitle = {
     generate: apiMode === "demo" ? "Build a signing request — running the in-browser demo until your backend is connected." : "Build a signing request; your backend creates the key and signs it.",
     decode: "Inspect and verify any existing PKCS#10 request.",
     quantum: "Grade a live site, CSR or certificate against the post-quantum threat.",
     compare: "Diff two CSRs field by field before submitting.",
     history: apiMode === "connected" ? "Saved requests stored on " + api.host() + " (CSR + metadata only)." : "Saved requests from this browser.",
-    server: "Connect your backend and view the API contract it must implement."
+    server: "Connect your backend and view the API contract it must implement.",
+    notfound: "That page doesn't exist."
   }[view];
 
   return (
@@ -182,6 +185,19 @@ export default function App() {
           {view === "compare" && <CompareView push={push} />}
           {view === "history" && <HistoryView items={history} onDelete={deleteItem} onClear={clearAll} onRegenerate={regenerate} push={push} />}
           {view === "server" && <ServerView push={push} onConfigChange={refreshApi} />}
+          {view === "notfound" && (
+            <div className="fade-in">
+              <div className="result-empty" style={{ maxWidth: 520, margin: "40px auto" }}>
+                <span className="big" style={{ width: 72, height: 72, fontFamily: "var(--font-head)", fontWeight: 700, fontSize: 30, color: "var(--accent)" }}>404</span>
+                <h4>Page not found</h4>
+                <p><code>{typeof location !== "undefined" ? location.pathname : ""}</code> doesn't exist. It may have moved, or the link is wrong.</p>
+                <div style={{ display: "flex", gap: 10, marginTop: 6, flexWrap: "wrap", justifyContent: "center" }}>
+                  <Button variant="primary" icon="cert" onClick={() => go("generate")}>Go to the generator</Button>
+                  <Button variant="ghost" icon="spark" onClick={() => go("quantum")}>Quantum scan</Button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
