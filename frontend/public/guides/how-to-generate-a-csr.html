@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>How to Generate a CSR Online (No OpenSSL) — Step by Step | CSR Studio</title>
+<title>How to Generate a CSR Online (No OpenSSL) — Step by Step | PQCert</title>
 <meta name="description" content="Generate a Certificate Signing Request (CSR) in your browser: set the Common Name, SANs, and key algorithm, then download the CSR and private key. No OpenSSL, no signup." />
 <meta name="keywords" content="how to generate a CSR, create CSR online, CSR generator, certificate signing request, generate CSR without openssl, CSR for SSL certificate" />
 <link rel="canonical" href="https://pqcert.avinashchavan.com/guides/how-to-generate-a-csr.html" />
@@ -15,7 +15,7 @@
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"HowTo","name":"How to generate a CSR (Certificate Signing Request) online",
 "description":"Create a PKCS#10 Certificate Signing Request with the correct subject, Subject Alternative Names, and key algorithm.",
-"totalTime":"PT2M","tool":[{"@type":"HowToTool","name":"CSR Studio (free web tool)"}],
+"totalTime":"PT2M","tool":[{"@type":"HowToTool","name":"PQCert (free web tool)"}],
 "step":[
 {"@type":"HowToStep","name":"Enter the Common Name","text":"Type the primary domain, e.g. example.com. It is optional if you use SAN-only certificates."},
 {"@type":"HowToStep","name":"Add Subject Alternative Names","text":"Add every hostname or IP the certificate must cover. The CN is included automatically."},
@@ -42,7 +42,7 @@ footer{margin-top:44px;padding-top:20px;border-top:1px solid var(--border);color
 </head>
 <body>
 <div class="wrap">
-<nav class="bc"><a href="/">CSR Studio</a> › <a href="/guides/">Guides</a> › How to generate a CSR</nav>
+<nav class="bc"><a href="/">PQCert</a> › <a href="/guides/">Guides</a> › How to generate a CSR</nav>
 <h1>How to generate a CSR (online, no OpenSSL)</h1>
 <p class="lede">A Certificate Signing Request (CSR) is what you send to a Certificate Authority (CA) to get an SSL/TLS certificate. Here's how to create a correct one in about a minute — right in your browser.</p>
 
@@ -55,7 +55,7 @@ footer{margin-top:44px;padding-top:20px;border-top:1px solid var(--border);color
 <p>The CN is the primary domain the certificate secures, e.g. <code>example.com</code> or <code>*.example.com</code> for a wildcard. Modern certificates are validated against the SAN list, not the CN, so the CN is now <strong>optional</strong> — you can generate a SAN-only CSR. If you do set a CN, it's automatically copied into the SAN list for you.</p>
 
 <h2>Step 2 — Subject Alternative Names (SANs)</h2>
-<p>Add every hostname the certificate must cover: <code>www.example.com</code>, <code>api.example.com</code>, and so on. You can also add IP addresses. Browsers <strong>ignore the CN and only trust SANs</strong>, so this step is the one that actually matters. In CSR Studio the SAN type (DNS, IP, email, URI) is auto-detected, and duplicates are removed.</p>
+<p>Add every hostname the certificate must cover: <code>www.example.com</code>, <code>api.example.com</code>, and so on. You can also add IP addresses. Browsers <strong>ignore the CN and only trust SANs</strong>, so this step is the one that actually matters. In PQCert the SAN type (DNS, IP, email, URI) is auto-detected, and duplicates are removed.</p>
 
 <h2>Step 3 — Choose a key algorithm</h2>
 <ul>
@@ -78,7 +78,7 @@ footer{margin-top:44px;padding-top:20px;border-top:1px solid var(--border);color
 <h2>The equivalent OpenSSL command</h2>
 <p>Prefer the CLI? A typical request looks like:</p>
 <p><code>openssl req -new -newkey rsa:2048 -nodes -sha256 -keyout example.com.key -out example.com.csr -subj "/CN=example.com" -addext "subjectAltName=DNS:example.com,DNS:www.example.com"</code></p>
-<p>CSR Studio shows this exact command live as you fill the form, so you can copy it or just download the result directly.</p>
+<p>PQCert shows this exact command live as you fill the form, so you can copy it or just download the result directly.</p>
 
 <h2>After you have the certificate</h2>
 <p>Once the CA issues your certificate, install it <em>together with the private key</em> on your web server or load balancer. Want to double-check a request before submitting? <a href="/guides/how-to-decode-a-csr.html">Decode and verify the CSR</a> first.</p>
@@ -91,7 +91,7 @@ footer{margin-top:44px;padding-top:20px;border-top:1px solid var(--border);color
 <a href="/guides/how-to-decode-a-csr.html">How to decode and verify a CSR</a>
 <a href="/guides/is-my-website-quantum-safe.html">Is my website quantum-safe?</a>
 </div>
-<footer><a href="/">CSR Studio</a> — free CSR generator &amp; quantum-readiness scanner.</footer>
+<footer><a href="/">PQCert</a> — free CSR generator &amp; quantum-readiness scanner.</footer>
 </div>
 </body>
 </html>
