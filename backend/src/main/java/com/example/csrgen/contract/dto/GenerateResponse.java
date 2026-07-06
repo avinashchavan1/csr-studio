@@ -6,7 +6,9 @@ package com.example.csrgen.contract.dto;
 public record GenerateResponse(
         String csr,
         String privateKey,
-        Details details
+        Details details,
+        String id,
+        String recordPath
 ) {
     public record Details(
             String keyLabel,

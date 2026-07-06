@@ -38,13 +38,15 @@ public class ContractService {
     private final CsrParser csrParser;
     private final MatchService matchService;
     private final com.example.csrgen.crypto.CertService certService;
+    private final RecordService recordService;
 
     public ContractService(CsrService csrService, CsrParser csrParser, MatchService matchService,
-                           com.example.csrgen.crypto.CertService certService) {
+                           com.example.csrgen.crypto.CertService certService, RecordService recordService) {
         this.csrService = csrService;
         this.csrParser = csrParser;
         this.matchService = matchService;
         this.certService = certService;
+        this.recordService = recordService;
     }
 
     /**
@@ -129,7 +131,12 @@ public class ContractService {
             details = new GenerateResponse.Details("RSA " + key.size(), key.size() + "-bit",
                     rsaPkcs1 ? "PKCS#1" : "PKCS#8", pss ? hash + " (RSA-PSS)" : hash);
         }
-        return new GenerateResponse(out.csrPem(), out.keyPem(), details);
+        // Persist a retrievable snapshot (CSR + key label only — never the private
+        // key) under a UUID, and hand back its /r/<id> permalink. Best-effort: a
+        // storage failure leaves id/recordPath null and never blocks generation.
+        String id = recordService.save(out.csrPem(), details.keyLabel());
+        String recordPath = id == null ? null : "/r/" + id;
+        return new GenerateResponse(out.csrPem(), out.keyPem(), details, id, recordPath);
     }
 
     /* ---------------- decode ---------------- */

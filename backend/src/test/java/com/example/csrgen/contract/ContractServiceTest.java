@@ -41,7 +41,7 @@ class ContractServiceTest {
     private final ConversionService conversion = new ConversionService();
     private final ContractService contract = new ContractService(
             csrService, parser, new MatchService(parser, conversion),
-            new com.example.csrgen.crypto.CertService(parser, conversion));
+            new com.example.csrgen.crypto.CertService(parser, conversion), new RecordService(null));
 
     private ContractSubject subject(String cn) {
         return new ContractSubject(cn, "Example Inc.", "IT", "San Francisco", "California", "US", "a@b.com");
