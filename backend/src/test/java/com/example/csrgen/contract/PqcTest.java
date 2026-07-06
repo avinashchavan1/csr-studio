@@ -41,7 +41,7 @@ class PqcTest {
     private final CsrService csrService = new CsrService(new KeyPairService(), new ValidationService());
     private final ContractService contract = new ContractService(
             csrService, parser, new MatchService(parser, conversion),
-            new CertService(parser, conversion));
+            new CertService(parser, conversion), new RecordService(null));
 
     private GenerateRequest req(String algo) {
         return new GenerateRequest(

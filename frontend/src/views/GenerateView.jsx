@@ -510,6 +510,17 @@ export function GenerateView({ seed, onGenerated, push }) {
                 title="Create a read-only link to share this CSR for review">Share for review</Button>
             </div>
 
+            {result.recordPath && (
+              <div style={{ marginTop: -4, display: "flex", alignItems: "center", gap: 8, fontSize: 13, flexWrap: "wrap" }}>
+                <Icon name="globe" />
+                <span style={{ color: "var(--muted)" }}>Permalink</span>
+                <code style={{ wordBreak: "break-all" }}>{location.origin + result.recordPath}</code>
+                <Button variant="ghost" size="sm" icon="copy"
+                  onClick={() => doCopy(location.origin + result.recordPath, "Permalink")}
+                  title="Copy the retrievable link to this CSR (read-only, no private key)">Copy</Button>
+              </div>
+            )}
+
             <CodeBlock title={fileBase + ".key — private key (" + (result.keyFormat || "PKCS#8") + ")"} value={result.keyPem}
               onCopy={() => doCopy(result.keyPem, "Private key")}
               onDownload={() => { download(fileBase + ".key", result.keyPem); push("Private key downloaded"); }} />

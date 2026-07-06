@@ -48,7 +48,8 @@ const ROUTE_SEO = {
     desc: "Review your recently generated Certificate Signing Requests (CSR and metadata only — never private keys)." },
   server: { title: "Server / API Contract | PQCert",
     desc: "Connect your backend and view the REST API contract PQCert implements for CSR generation, decoding and quantum scanning." },
-  notfound: { title: "Page not found | PQCert", desc: "That page doesn't exist." }
+  notfound: { title: "Page not found | PQCert", desc: "That page doesn't exist." },
+  record: { title: "Saved CSR | PQCert", desc: "A saved certificate signing request (read-only, no private key)." }
 };
 function applyRouteSeo(view) {
   const s = ROUTE_SEO[view] || ROUTE_SEO.generate;
@@ -63,9 +64,15 @@ function applyRouteSeo(view) {
   if (!link) { link = document.createElement("link"); link.setAttribute("rel", "canonical"); document.head.appendChild(link); }
   link.setAttribute("href", SITE + (VIEW_PATH[view] || "/"));
 }
+// /r/<uuid> — a saved-generation permalink (read-only CSR snapshot, no key).
+function recordIdFromPath() {
+  const m = (location.pathname || "").match(/^\/r\/([^/]+)\/?$/);
+  return m ? decodeURIComponent(m[1]) : null;
+}
 function pathToView() {
   const p = (location.pathname || "/").replace(/\/+$/, "") || "/";
   if (p === "/") return "generate";
+  if (recordIdFromPath()) return "record";
   return PATH_VIEW[p] || "notfound";
 }
 function initialView() {
@@ -88,14 +95,27 @@ export default function App() {
 
   const [seedCsr, setSeedCsr] = useState(null);
   const [seedHost, setSeedHost] = useState(null);
+  const [recordErr, setRecordErr] = useState("");
   const reloadHistory = () => api.historyList().then(setHistory).catch(() => {});
 
-  // deep links: /?share=<id> → read-only Decode · /?scan=<domain> → run a quantum scan
+  // Load a saved-generation snapshot for /r/<uuid> (read-only, no private key).
+  function loadRecord(id) {
+    setRecordErr(""); setSeedCsr(null);
+    api.recordGet(id)
+      .then(d => setSeedCsr(d.csr))
+      .catch(() => setRecordErr("This saved CSR link wasn't found. It may have expired, or the id is wrong."));
+  }
+
+  // deep links: /r/<id> → read-only snapshot · /?share=<id> → Decode · /?scan=<domain> → quantum
   useEffect(() => {
+    const rid = recordIdFromPath();
     const q = new URLSearchParams(location.search);
     const id = q.get("share");
     const scanHost = q.get("scan");
-    if (id) {
+    if (rid) {
+      setView("record");
+      loadRecord(rid);
+    } else if (id) {
       setView("decode");
       api.shareGet(id).then(d => setSeedCsr(d.csr)).catch(() => push("That review link wasn't found (it may have expired).", "err"));
     } else if (scanHost) {
@@ -120,7 +140,14 @@ export default function App() {
   // Per-route title / description / canonical (updated on navigation for SEO).
   useEffect(() => { applyRouteSeo(view); }, [view]);
 
-  function onGenerated(res) { api.historySave(res).then(reloadHistory).catch(() => {}); }
+  function onGenerated(res) {
+    api.historySave(res).then(reloadHistory).catch(() => {});
+    // Reflect the server-assigned permalink in the URL so this result is
+    // bookmarkable/retrievable at /r/<id>. replaceState keeps the live result
+    // (with its one-time private key) on screen without a navigation.
+    const path = res && res.recordPath;
+    if (path) { try { window.history.replaceState({ v: "generate" }, "", path); } catch (e) {} }
+  }
   function deleteItem(id) { api.historyDelete(id).then(reloadHistory).catch(() => {}); }
   function clearAll() { api.historyClear().then(reloadHistory).catch(() => {}); }
   function regenerate(it) {
@@ -147,13 +174,19 @@ export default function App() {
 
   // browser back/forward → sync view from the URL
   useEffect(() => {
-    const onPop = () => setView(pathToView());
+    const onPop = () => {
+      const v = pathToView();
+      setView(v);
+      const rid = recordIdFromPath();
+      if (v === "record" && rid) loadRecord(rid);
+    };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
   const accentChoices = ACCENTS[t.look] || ACCENTS.slate;
-  const current = NAV.find(n => n.id === view) || { label: "Page not found" };
+  const LABELS = { record: "Saved CSR" };
+  const current = NAV.find(n => n.id === view) || { label: LABELS[view] || "Page not found" };
   const subtitle = {
     generate: apiMode === "demo" ? "Build a signing request — running the in-browser demo until your backend is connected." : "Build a signing request; your backend creates the key and signs it.",
     decode: "Inspect and verify any existing PKCS#10 request.",
@@ -161,7 +194,8 @@ export default function App() {
     compare: "Diff two CSRs field by field before submitting.",
     history: apiMode === "connected" ? "Saved requests stored on " + api.host() + " (CSR + metadata only)." : "Saved requests from this browser.",
     server: "Connect your backend and view the API contract it must implement.",
-    notfound: "That page doesn't exist."
+    notfound: "That page doesn't exist.",
+    record: "A saved certificate signing request — read-only, retrieved by its link. Private keys are never stored."
   }[view];
 
   return (
@@ -220,6 +254,20 @@ export default function App() {
           {view === "compare" && <CompareView push={push} />}
           {view === "history" && <HistoryView items={history} onDelete={deleteItem} onClear={clearAll} onRegenerate={regenerate} push={push} />}
           {view === "server" && <ServerView push={push} onConfigChange={refreshApi} />}
+          {view === "record" && (
+            recordErr
+              ? <div className="fade-in">
+                  <div className="result-empty" style={{ maxWidth: 520, margin: "40px auto" }}>
+                    <span className="big"><Icon name="search" /></span>
+                    <h4>Saved CSR not found</h4>
+                    <p>{recordErr}</p>
+                    <div style={{ display: "flex", gap: 10, marginTop: 6, flexWrap: "wrap", justifyContent: "center" }}>
+                      <Button variant="primary" icon="cert" onClick={() => go("generate")}>Generate a CSR</Button>
+                    </div>
+                  </div>
+                </div>
+              : <DecodeView key={seedCsr || "loading"} push={push} seedCsr={seedCsr} />
+          )}
           {view === "notfound" && (
             <div className="fade-in">
               <div className="result-empty" style={{ maxWidth: 520, margin: "40px auto" }}>

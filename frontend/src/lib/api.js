@@ -157,7 +157,8 @@ function normGenerate(r, o) {
     keyDetail: d.keyDetail || "",
     sigAlg: d.signatureAlgorithm || o.hash,
     hash: o.hash, keyType: o.keyType, size: o.size,
-    subject: o.subject, sans: o.sans || [], createdAt: Date.now()
+    subject: o.subject, sans: o.sans || [], createdAt: Date.now(),
+    id: r.id || null, recordPath: r.recordPath || (r.id ? "/r/" + r.id : null)
   };
 }
 function normDecode(r) {
@@ -246,6 +247,10 @@ export async function shareCreate(csrPem) {
 }
 export async function shareGet(id) {
   return (await request("/csr/share/" + encodeURIComponent(id), { method: "GET", retries: config.retries })).data;
+}
+/** Retrieve a generated CSR snapshot by UUID (the /r/<id> permalink). CSR + metadata only. */
+export async function recordGet(id) {
+  return (await request("/csr/record/" + encodeURIComponent(id), { method: "GET", retries: config.retries })).data;
 }
 
 export async function selfSigned(opts, days = 365) {
@@ -391,5 +396,5 @@ export const SAMPLES = {
   }
 };
 
-const CSRApi = { generate, hybrid, quantumScan, shareCreate, shareGet, selfSigned, decode, lint, pkcs12, match, getConfig, setConfig, mode, host, testConnection, generateRequest, historyList, historySave, historyDelete, historyClear, ApiError, SAMPLES, DEFAULTS };
+const CSRApi = { generate, hybrid, quantumScan, shareCreate, shareGet, recordGet, selfSigned, decode, lint, pkcs12, match, getConfig, setConfig, mode, host, testConnection, generateRequest, historyList, historySave, historyDelete, historyClear, ApiError, SAMPLES, DEFAULTS };
 export default CSRApi;

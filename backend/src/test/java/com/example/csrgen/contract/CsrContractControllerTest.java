@@ -49,6 +49,36 @@ class CsrContractControllerTest {
                 .andExpect(jsonPath("$.details.keyFormat").value("PKCS#8"));
     }
 
+    /** Every generation gets a retrievable UUID; /r/<id> returns the CSR (no key). */
+    @Test
+    void generateAssignsRetrievableRecordId() throws Exception {
+        MvcResult gen = mvc.perform(post("/csr/generate")
+                        .contentType(MediaType.APPLICATION_JSON).content(GEN_RSA))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").isNotEmpty())
+                .andExpect(jsonPath("$.recordPath").value(org.hamcrest.Matchers.startsWith("/r/")))
+                .andReturn();
+        JsonNode g = json.readTree(gen.getResponse().getContentAsString());
+        String id = g.get("id").asText();
+        String csr = g.get("csr").asText();
+
+        MvcResult rec = mvc.perform(get("/csr/record/" + id))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.keyLabel").value("RSA 2048"))
+                .andReturn();
+        // Retrieved CSR matches, and the private key is NOT present in the record.
+        JsonNode r = json.readTree(rec.getResponse().getContentAsString());
+        assertThat(r.get("csr").asText()).isEqualTo(csr);
+        assertThat(rec.getResponse().getContentAsString()).doesNotContain("PRIVATE KEY");
+    }
+
+    @Test
+    void unknownRecordIdReturns404() throws Exception {
+        mvc.perform(get("/csr/record/does-not-exist"))
+                .andExpect(status().isNotFound());
+    }
+
     @Test
     void noCommonNameAndNoSanRejected() throws Exception {
         // CN is now optional (SAN-only CSRs allowed) — but a request with neither is rejected.

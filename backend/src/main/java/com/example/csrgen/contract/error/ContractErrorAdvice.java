@@ -48,6 +48,13 @@ public class ContractErrorAdvice {
         return ResponseEntity.badRequest().body(ErrorBody.of(ex.getMessage(), null));
     }
 
+    /** Preserve deliberate status codes (e.g. 404 for an unknown /r/&lt;id&gt;). */
+    @ExceptionHandler(org.springframework.web.server.ResponseStatusException.class)
+    public ResponseEntity<ErrorBody> handleStatus(org.springframework.web.server.ResponseStatusException ex) {
+        String message = ex.getReason() != null ? ex.getReason() : "Request failed.";
+        return ResponseEntity.status(ex.getStatusCode()).body(ErrorBody.of(message, null));
+    }
+
     /** Malformed JSON, wrong types, etc. → 400 (not 500). No internals leaked. */
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorBody> handleUnreadable(HttpMessageNotReadableException ex) {
