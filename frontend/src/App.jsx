@@ -31,6 +31,38 @@ const NAV = [
 // URL routing (History API, no router lib)
 const VIEW_PATH = { generate: "/", decode: "/decode", quantum: "/quantum", compare: "/compare", history: "/history", server: "/server" };
 const PATH_VIEW = { "/decode": "decode", "/quantum": "quantum", "/compare": "compare", "/history": "history", "/server": "server" };
+
+// Per-route SEO: Googlebot renders the SPA, so updating title/description/canonical
+// on navigation gives each view its own indexable metadata.
+const SITE = "https://pqcert.avinashchavan.com";
+const ROUTE_SEO = {
+  generate: { title: "CSR Generator — RSA, ECDSA & Post-Quantum (ML-DSA) CSRs | PQCert",
+    desc: "Free online CSR generator: create Certificate Signing Requests with RSA, ECDSA, Ed25519 or post-quantum ML-DSA / SLH-DSA / Falcon keys." },
+  decode: { title: "CSR Decoder — Decode & Verify a PKCS#10 CSR Online | PQCert",
+    desc: "Decode any Certificate Signing Request: read the subject, SANs, key strength, signature validity and extensions, and check it matches your private key." },
+  quantum: { title: "Quantum-Readiness Scanner — Is Your Site Quantum-Safe? | PQCert",
+    desc: "Scan any live domain, CSR or certificate for 'harvest now, decrypt later' risk and get a post-quantum letter grade with a migration plan." },
+  compare: { title: "Compare Two CSRs — Field-by-Field Diff | PQCert",
+    desc: "Diff two Certificate Signing Requests side by side — subject, SANs, key and extensions — before you submit to a CA." },
+  history: { title: "CSR History | PQCert",
+    desc: "Review your recently generated Certificate Signing Requests (CSR and metadata only — never private keys)." },
+  server: { title: "Server / API Contract | PQCert",
+    desc: "Connect your backend and view the REST API contract PQCert implements for CSR generation, decoding and quantum scanning." },
+  notfound: { title: "Page not found | PQCert", desc: "That page doesn't exist." }
+};
+function applyRouteSeo(view) {
+  const s = ROUTE_SEO[view] || ROUTE_SEO.generate;
+  document.title = s.title;
+  const setMeta = (name, val) => {
+    let el = document.querySelector(`meta[name="${name}"]`);
+    if (!el) { el = document.createElement("meta"); el.setAttribute("name", name); document.head.appendChild(el); }
+    el.setAttribute("content", val);
+  };
+  setMeta("description", s.desc);
+  let link = document.querySelector('link[rel="canonical"]');
+  if (!link) { link = document.createElement("link"); link.setAttribute("rel", "canonical"); document.head.appendChild(link); }
+  link.setAttribute("href", SITE + (VIEW_PATH[view] || "/"));
+}
 function pathToView() {
   const p = (location.pathname || "/").replace(/\/+$/, "") || "/";
   if (p === "/") return "generate";
@@ -84,6 +116,9 @@ export default function App() {
     if (!t.grid) document.body.style.backgroundImage = "none";
     else document.body.style.removeProperty("background-image");
   }, [t.look, t.accent, t.density, t.grid]);
+
+  // Per-route title / description / canonical (updated on navigation for SEO).
+  useEffect(() => { applyRouteSeo(view); }, [view]);
 
   function onGenerated(res) { api.historySave(res).then(reloadHistory).catch(() => {}); }
   function deleteItem(id) { api.historyDelete(id).then(reloadHistory).catch(() => {}); }
