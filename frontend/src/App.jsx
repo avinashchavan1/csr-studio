@@ -36,8 +36,8 @@ const PATH_VIEW = { "/decode": "decode", "/quantum": "quantum", "/compare": "com
 // on navigation gives each view its own indexable metadata.
 const SITE = "https://pqcert.avinashchavan.com";
 const ROUTE_SEO = {
-  generate: { title: "CSR Generator — RSA, ECDSA & Post-Quantum (ML-DSA) CSRs | PQCert",
-    desc: "Free online CSR generator: create Certificate Signing Requests with RSA, ECDSA, Ed25519 or post-quantum ML-DSA / SLH-DSA / Falcon keys." },
+  generate: { title: "CSR & PQC Certificate Generator Online — RSA, ECDSA, ML-DSA | PQCert",
+    desc: "Free online CSR & PQC certificate generator. Generate post-quantum (PQC) CSRs and certificates online with ML-DSA, SLH-DSA or Falcon, or classical RSA / ECDSA / Ed25519 keys." },
   decode: { title: "CSR Decoder — Decode & Verify a PKCS#10 CSR Online | PQCert",
     desc: "Decode any Certificate Signing Request: read the subject, SANs, key strength, signature validity and extensions, and check it matches your private key." },
   quantum: { title: "Quantum-Readiness Scanner — Is Your Site Quantum-Safe? | PQCert",
