@@ -12,6 +12,9 @@
 <meta property="og:title" content="How to decode and verify a CSR" />
 <meta property="og:description" content="Read the subject, SANs, key and signature from any PKCS#10 CSR, and confirm it matches your private key." />
 <meta property="og:url" content="https://pqcert.avinashchavan.com/guides/how-to-decode-a-csr.html" />
+<meta property="og:image" content="https://pqcert.avinashchavan.com/og.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://pqcert.avinashchavan.com/og.png" />
 <style>
 :root{--bg:#f4f6f9;--surface:#fff;--text:#0f1b2d;--muted:#5b6b82;--accent:#2563eb;--border:#e3e8ef}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.7}
@@ -25,6 +28,95 @@ code{background:#eef2f7;border:1px solid var(--border);border-radius:5px;padding
 footer{margin-top:44px;padding-top:20px;border-top:1px solid var(--border);color:var(--muted);font-size:14px}
 .rel a{display:block;margin:4px 0}
 </style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "headline": "How to decode and verify a CSR",
+  "description": "Decode any Certificate Signing Request to read its subject, SANs, key algorithm and signature — and verify the CSR matches your private key. Free online CSR decoder.",
+  "image": "https://pqcert.avinashchavan.com/og.png",
+  "inLanguage": "en",
+  "datePublished": "2026-07-06",
+  "dateModified": "2026-07-06",
+  "author": {
+    "@type": "Organization",
+    "name": "PQCert",
+    "url": "https://pqcert.avinashchavan.com/"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "PQCert",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://pqcert.avinashchavan.com/og.png"
+    }
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://pqcert.avinashchavan.com/guides/how-to-decode-a-csr.html"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {
+      "@type": "ListItem",
+      "position": 1,
+      "name": "PQCert",
+      "item": "https://pqcert.avinashchavan.com/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 2,
+      "name": "Guides",
+      "item": "https://pqcert.avinashchavan.com/guides/"
+    },
+    {
+      "@type": "ListItem",
+      "position": 3,
+      "name": "How to decode a CSR",
+      "item": "https://pqcert.avinashchavan.com/guides/how-to-decode-a-csr.html"
+    }
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  "name": "How to decode and verify a CSR online",
+  "description": "Decode any Certificate Signing Request to read its subject, SANs, key algorithm and signature — and verify the CSR matches your private key. Free online CSR decoder.",
+  "step": [
+    {
+      "@type": "HowToStep",
+      "position": 1,
+      "name": "Open the decoder",
+      "text": "Open the Decode / Inspect tab at https://pqcert.avinashchavan.com/decode."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 2,
+      "name": "Paste the CSR",
+      "text": "Paste the PEM block (starting with -----BEGIN CERTIFICATE REQUEST-----) or its bare base64 body."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 3,
+      "name": "Read the details",
+      "text": "Read the parsed subject, SANs, key strength, signature validity and requested extensions."
+    },
+    {
+      "@type": "HowToStep",
+      "position": 4,
+      "name": "Verify the key (optional)",
+      "text": "Expand 'check a private key matches this CSR' and paste your key — it is compared locally in your browser and never uploaded."
+    }
+  ]
+}
+</script>
 </head>
 <body>
 <div class="wrap">
