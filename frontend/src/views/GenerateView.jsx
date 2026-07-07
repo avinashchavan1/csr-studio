@@ -512,7 +512,7 @@ export function GenerateView({ seed, onGenerated, push }) {
 
             {result.recordPath && (
               <div style={{ marginTop: -4, display: "flex", alignItems: "center", gap: 8, fontSize: 13, flexWrap: "wrap" }}>
-                <Icon name="globe" />
+                <Icon name="globe" width={15} height={15} style={{ flexShrink: 0 }} />
                 <span style={{ color: "var(--muted)" }}>Permalink</span>
                 <code style={{ wordBreak: "break-all" }}>{location.origin + result.recordPath}</code>
                 <Button variant="ghost" size="sm" icon="copy"
