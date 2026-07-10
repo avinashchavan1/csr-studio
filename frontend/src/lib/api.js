@@ -290,6 +290,11 @@ export async function match(pem, keyPem) {
   if (mode() === "demo") { await sleep(Math.min(config.demoLatencyMs, 450)); return engine.keyMatch(pem, keyPem); }
   return (await request("/csr/match", { body: { csr: pem, privateKey: keyPem }, retries: config.retries })).data;
 }
+/** Verify a signature (detached) or a certificate-by-issuer. Backend-only (uses Bouncy Castle for PQC). */
+export async function verify(payload) {
+  if (mode() === "demo") throw new ApiError("Signature verification requires a connected backend.");
+  return (await request("/csr/verify", { body: payload, retries: config.retries })).data;
+}
 export async function testConnection() {
   if (mode() === "demo") return { ok: false, demo: true };
   try {
@@ -396,5 +401,5 @@ export const SAMPLES = {
   }
 };
 
-const CSRApi = { generate, hybrid, quantumScan, shareCreate, shareGet, recordGet, selfSigned, decode, lint, pkcs12, match, getConfig, setConfig, mode, host, testConnection, generateRequest, historyList, historySave, historyDelete, historyClear, ApiError, SAMPLES, DEFAULTS };
+const CSRApi = { generate, hybrid, quantumScan, shareCreate, shareGet, recordGet, selfSigned, decode, lint, pkcs12, match, verify, getConfig, setConfig, mode, host, testConnection, generateRequest, historyList, historySave, historyDelete, historyClear, ApiError, SAMPLES, DEFAULTS };
 export default CSRApi;

@@ -31,12 +31,15 @@ public class CsrContractController {
     private final ContractService contractService;
     private final JobStore jobStore;
     private final QuantumScanService quantumScanService;
+    private final com.example.csrgen.crypto.VerifyService verifyService;
 
     public CsrContractController(ContractService contractService, JobStore jobStore,
-                                 QuantumScanService quantumScanService) {
+                                 QuantumScanService quantumScanService,
+                                 com.example.csrgen.crypto.VerifyService verifyService) {
         this.contractService = contractService;
         this.jobStore = jobStore;
         this.quantumScanService = quantumScanService;
+        this.verifyService = verifyService;
     }
 
     /** Quantum-readiness (HNDL) report for a CSR, certificate, or live host. */
@@ -101,5 +104,12 @@ public class CsrContractController {
     @PostMapping(value = "/match", consumes = MediaType.APPLICATION_JSON_VALUE)
     public MatchResponse match(@Valid @RequestBody MatchRequest request) {
         return contractService.match(request.csr(), request.privateKey());
+    }
+
+    /** Verify a digital signature (detached or certificate-by-issuer). Public-key only. */
+    @PostMapping(value = "/verify", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public com.example.csrgen.contract.dto.VerifyResponse verify(
+            @RequestBody com.example.csrgen.contract.dto.VerifyRequest request) {
+        return verifyService.verify(request);
     }
 }
