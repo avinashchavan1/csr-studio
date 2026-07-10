@@ -32,14 +32,17 @@ public class CsrContractController {
     private final JobStore jobStore;
     private final QuantumScanService quantumScanService;
     private final com.example.csrgen.crypto.VerifyService verifyService;
+    private final com.example.csrgen.crypto.SignService signService;
 
     public CsrContractController(ContractService contractService, JobStore jobStore,
                                  QuantumScanService quantumScanService,
-                                 com.example.csrgen.crypto.VerifyService verifyService) {
+                                 com.example.csrgen.crypto.VerifyService verifyService,
+                                 com.example.csrgen.crypto.SignService signService) {
         this.contractService = contractService;
         this.jobStore = jobStore;
         this.quantumScanService = quantumScanService;
         this.verifyService = verifyService;
+        this.signService = signService;
     }
 
     /** Quantum-readiness (HNDL) report for a CSR, certificate, or live host. */
@@ -111,5 +114,12 @@ public class CsrContractController {
     public com.example.csrgen.contract.dto.VerifyResponse verify(
             @RequestBody com.example.csrgen.contract.dto.VerifyRequest request) {
         return verifyService.verify(request);
+    }
+
+    /** Sign a message with a private key (used transiently, never stored). */
+    @PostMapping(value = "/sign", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public com.example.csrgen.contract.dto.SignResponse sign(
+            @RequestBody com.example.csrgen.contract.dto.SignRequest request) {
+        return signService.sign(request);
     }
 }
