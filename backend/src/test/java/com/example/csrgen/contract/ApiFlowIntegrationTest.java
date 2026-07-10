@@ -144,6 +144,34 @@ class ApiFlowIntegrationTest {
     }
 
     @Test
+    void signThenVerifyOverHttp() throws Exception {
+        // sign server-side, then verify the returned signature + derived public key
+        var kp = new com.example.csrgen.crypto.KeyPairService()
+                .generate(com.example.csrgen.domain.KeyAlgorithm.ML_DSA, null, "ML-DSA-65");
+        String privPem = com.example.csrgen.crypto.PemUtil.toPem(kp.getPrivate());
+
+        String signBody = json.writeValueAsString(Map.of(
+                "message", "http-sign-loop", "messageEncoding", "utf8",
+                "privateKey", privPem, "algorithm", "auto"));
+        JsonNode s = postJson("/csr/sign", signBody);
+        assertThat(s.get("signature").asText()).isNotBlank();
+        assertThat(s.get("keyKind").asText()).isEqualTo("ML-DSA");
+        assertThat(s.get("pqc").asBoolean()).isTrue();
+        String sig = s.get("signature").asText();
+        String pub = s.get("publicKey").asText();
+        assertThat(pub).contains("PUBLIC KEY");
+
+        String verifyBody = json.writeValueAsString(Map.of(
+                "mode", "detached", "message", "http-sign-loop", "messageEncoding", "utf8",
+                "signature", sig, "signatureEncoding", "base64",
+                "publicKey", pub, "algorithm", "auto"));
+        mvc.perform(post("/csr/verify").contentType(MediaType.APPLICATION_JSON).content(verifyBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valid").value(true))
+                .andExpect(jsonPath("$.pqc").value(true));
+    }
+
+    @Test
     void hybridClassicalPlusPqc() throws Exception {
         String body = genBody(Map.of("algorithm", "RSA", "size", 2048, "format", "PKCS#8"));
         mvc.perform(post("/csr/hybrid?pqc=ML-DSA-65").contentType(MediaType.APPLICATION_JSON).content(body))

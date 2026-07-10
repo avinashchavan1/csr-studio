@@ -295,6 +295,11 @@ export async function verify(payload) {
   if (mode() === "demo") throw new ApiError("Signature verification requires a connected backend.");
   return (await request("/csr/verify", { body: payload, retries: config.retries })).data;
 }
+/** Sign a message with a private key. Backend-only; key is used transiently, never stored. */
+export async function sign(payload) {
+  if (mode() === "demo") throw new ApiError("Signing requires a connected backend.");
+  return (await request("/csr/sign", { body: payload, retries: config.retries })).data;
+}
 export async function testConnection() {
   if (mode() === "demo") return { ok: false, demo: true };
   try {
@@ -401,5 +406,5 @@ export const SAMPLES = {
   }
 };
 
-const CSRApi = { generate, hybrid, quantumScan, shareCreate, shareGet, recordGet, selfSigned, decode, lint, pkcs12, match, verify, getConfig, setConfig, mode, host, testConnection, generateRequest, historyList, historySave, historyDelete, historyClear, ApiError, SAMPLES, DEFAULTS };
+const CSRApi = { generate, hybrid, quantumScan, shareCreate, shareGet, recordGet, selfSigned, decode, lint, pkcs12, match, verify, sign, getConfig, setConfig, mode, host, testConnection, generateRequest, historyList, historySave, historyDelete, historyClear, ApiError, SAMPLES, DEFAULTS };
 export default CSRApi;
