@@ -11,6 +11,7 @@ import { VerifyView } from "./views/VerifyView.jsx";
 import { HistoryView } from "./views/HistoryView.jsx";
 import { ServerView } from "./views/ServerView.jsx";
 import * as api from "./lib/api.js";
+import { pathToView, recordIdFromPath, viewToPath } from "./lib/routes.js";
 
 const TWEAK_DEFAULTS = { look: "slate", accent: "", density: "regular", grid: true };
 
@@ -30,9 +31,7 @@ const NAV = [
   { id: "server", label: "Server / API", icon: "server" }
 ];
 
-// URL routing (History API, no router lib)
-const VIEW_PATH = { generate: "/", decode: "/decode", verify: "/verify", quantum: "/quantum", compare: "/compare", history: "/history", server: "/server" };
-const PATH_VIEW = { "/decode": "decode", "/verify": "verify", "/quantum": "quantum", "/compare": "compare", "/history": "history", "/server": "server" };
+// URL routing lives in ./lib/routes.js (pure, unit-tested).
 
 // Per-route SEO: Googlebot renders the SPA, so updating title/description/canonical
 // on navigation gives each view its own indexable metadata.
@@ -66,24 +65,13 @@ function applyRouteSeo(view) {
   setMeta("description", s.desc);
   let link = document.querySelector('link[rel="canonical"]');
   if (!link) { link = document.createElement("link"); link.setAttribute("rel", "canonical"); document.head.appendChild(link); }
-  link.setAttribute("href", SITE + (VIEW_PATH[view] || "/"));
-}
-// /r/<uuid> — a saved-generation permalink (read-only CSR snapshot, no key).
-function recordIdFromPath() {
-  const m = (location.pathname || "").match(/^\/r\/([^/]+)\/?$/);
-  return m ? decodeURIComponent(m[1]) : null;
-}
-function pathToView() {
-  const p = (location.pathname || "/").replace(/\/+$/, "") || "/";
-  if (p === "/") return "generate";
-  if (recordIdFromPath()) return "record";
-  return PATH_VIEW[p] || "notfound";
+  link.setAttribute("href", SITE + viewToPath(view));
 }
 function initialView() {
   const q = new URLSearchParams(location.search);
   if (q.get("share")) return "decode";
   if (q.get("scan")) return "quantum";
-  return pathToView();
+  return pathToView(location.pathname);
 }
 
 export default function App() {
@@ -112,7 +100,7 @@ export default function App() {
 
   // deep links: /r/<id> → read-only snapshot · /?share=<id> → Decode · /?scan=<domain> → quantum
   useEffect(() => {
-    const rid = recordIdFromPath();
+    const rid = recordIdFromPath(location.pathname);
     const q = new URLSearchParams(location.search);
     const id = q.get("share");
     const scanHost = q.get("scan");
@@ -171,7 +159,7 @@ export default function App() {
 
   function go(v) {
     setView(v); setNavOpen(false);
-    const path = VIEW_PATH[v] || "/";
+    const path = viewToPath(v);
     // window.history — NOT the `history` state var above (which shadows it)
     try { if (location.pathname !== path || location.search) window.history.pushState({ v }, "", path); } catch (e) {}
   }
@@ -179,9 +167,9 @@ export default function App() {
   // browser back/forward → sync view from the URL
   useEffect(() => {
     const onPop = () => {
-      const v = pathToView();
+      const v = pathToView(location.pathname);
       setView(v);
-      const rid = recordIdFromPath();
+      const rid = recordIdFromPath(location.pathname);
       if (v === "record" && rid) loadRecord(rid);
     };
     window.addEventListener("popstate", onPop);
