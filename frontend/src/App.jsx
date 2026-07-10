@@ -7,6 +7,7 @@ import { GenerateView } from "./views/GenerateView.jsx";
 import { DecodeView } from "./views/DecodeView.jsx";
 import { QuantumScanView } from "./views/QuantumScanView.jsx";
 import { CompareView } from "./views/CompareView.jsx";
+import { VerifyView } from "./views/VerifyView.jsx";
 import { HistoryView } from "./views/HistoryView.jsx";
 import { ServerView } from "./views/ServerView.jsx";
 import * as api from "./lib/api.js";
@@ -22,6 +23,7 @@ const ACCENTS = {
 const NAV = [
   { id: "generate", label: "Generate CSR", icon: "cert" },
   { id: "decode", label: "Decode / Inspect", icon: "search" },
+  { id: "verify", label: "Verify Signature", icon: "check" },
   { id: "quantum", label: "Quantum Scan", icon: "spark" },
   { id: "compare", label: "Compare", icon: "layers" },
   { id: "history", label: "History", icon: "history" },
@@ -29,8 +31,8 @@ const NAV = [
 ];
 
 // URL routing (History API, no router lib)
-const VIEW_PATH = { generate: "/", decode: "/decode", quantum: "/quantum", compare: "/compare", history: "/history", server: "/server" };
-const PATH_VIEW = { "/decode": "decode", "/quantum": "quantum", "/compare": "compare", "/history": "history", "/server": "server" };
+const VIEW_PATH = { generate: "/", decode: "/decode", verify: "/verify", quantum: "/quantum", compare: "/compare", history: "/history", server: "/server" };
+const PATH_VIEW = { "/decode": "decode", "/verify": "verify", "/quantum": "quantum", "/compare": "compare", "/history": "history", "/server": "server" };
 
 // Per-route SEO: Googlebot renders the SPA, so updating title/description/canonical
 // on navigation gives each view its own indexable metadata.
@@ -40,6 +42,8 @@ const ROUTE_SEO = {
     desc: "Free online CSR & PQC certificate generator. Generate post-quantum (PQC) CSRs and certificates online with ML-DSA, SLH-DSA or Falcon, or classical RSA / ECDSA / Ed25519 keys." },
   decode: { title: "CSR Decoder — Decode & Verify a PKCS#10 CSR Online | PQCert",
     desc: "Decode any Certificate Signing Request: read the subject, SANs, key strength, signature validity and extensions, and check it matches your private key." },
+  verify: { title: "Signature Verification — RSA, ECDSA, Ed25519 & PQC (ML-DSA) | PQCert",
+    desc: "Verify a digital signature online: detached message/file signatures or certificate-by-issuer. Supports classical and post-quantum (ML-DSA, SLH-DSA, Falcon)." },
   quantum: { title: "Quantum-Readiness Scanner — Is Your Site Quantum-Safe? | PQCert",
     desc: "Scan any live domain, CSR or certificate for 'harvest now, decrypt later' risk and get a post-quantum letter grade with a migration plan." },
   compare: { title: "Compare Two CSRs — Field-by-Field Diff | PQCert",
@@ -190,6 +194,7 @@ export default function App() {
   const subtitle = {
     generate: apiMode === "demo" ? "Build a signing request — running the in-browser demo until your backend is connected." : "Build a signing request; your backend creates the key and signs it.",
     decode: "Inspect and verify any existing PKCS#10 request.",
+    verify: "Verify a digital signature — detached, or a certificate signed by its issuer. Classical + post-quantum.",
     quantum: "Grade a live site, CSR or certificate against the post-quantum threat.",
     compare: "Diff two CSRs field by field before submitting.",
     history: apiMode === "connected" ? "Saved requests stored on " + api.host() + " (CSR + metadata only)." : "Saved requests from this browser.",
@@ -249,6 +254,7 @@ export default function App() {
         <div className={"content" + (view === "history" ? " narrow" : "")}>
           {view === "generate" && <GenerateView key={seed && seed._ts} seed={seed} onGenerated={onGenerated} push={push} />}
           {view === "decode" && <DecodeView push={push} seedCsr={seedCsr} />}
+          {view === "verify" && <VerifyView push={push} />}
           {view === "quantum" && <QuantumScanView push={push} seedHost={seedHost}
             onGenerateHybrid={(target) => { setSeed({ cn: /^[a-zA-Z0-9.-]+$/.test(target || "") ? target : "", _ts: Date.now() }); go("generate"); push("Use the Hybrid PQC button below"); }} />}
           {view === "compare" && <CompareView push={push} />}
