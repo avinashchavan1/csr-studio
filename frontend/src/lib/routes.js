@@ -1,10 +1,12 @@
 /* Pure URL <-> view routing (no globals) so it can be unit-tested. */
 export const VIEW_PATH = {
-  generate: "/", decode: "/decode", verify: "/verify", quantum: "/quantum",
+  generate: "/", decode: "/decode", verify: "/verify", convert: "/convert",
+  chain: "/chain", quantum: "/quantum",
   compare: "/compare", history: "/history", server: "/server"
 };
 export const PATH_VIEW = {
-  "/decode": "decode", "/verify": "verify", "/quantum": "quantum",
+  "/decode": "decode", "/verify": "verify", "/convert": "convert",
+  "/chain": "chain", "/quantum": "quantum",
   "/compare": "compare", "/history": "history", "/server": "server"
 };
 

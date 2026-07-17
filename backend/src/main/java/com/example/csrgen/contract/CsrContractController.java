@@ -33,16 +33,22 @@ public class CsrContractController {
     private final QuantumScanService quantumScanService;
     private final com.example.csrgen.crypto.VerifyService verifyService;
     private final com.example.csrgen.crypto.SignService signService;
+    private final com.example.csrgen.crypto.KeyConvertService keyConvertService;
+    private final com.example.csrgen.crypto.ChainService chainService;
 
     public CsrContractController(ContractService contractService, JobStore jobStore,
                                  QuantumScanService quantumScanService,
                                  com.example.csrgen.crypto.VerifyService verifyService,
-                                 com.example.csrgen.crypto.SignService signService) {
+                                 com.example.csrgen.crypto.SignService signService,
+                                 com.example.csrgen.crypto.KeyConvertService keyConvertService,
+                                 com.example.csrgen.crypto.ChainService chainService) {
         this.contractService = contractService;
         this.jobStore = jobStore;
         this.quantumScanService = quantumScanService;
         this.verifyService = verifyService;
         this.signService = signService;
+        this.keyConvertService = keyConvertService;
+        this.chainService = chainService;
     }
 
     /** Quantum-readiness (HNDL) report for a CSR, certificate, or live host. */
@@ -121,5 +127,19 @@ public class CsrContractController {
     public com.example.csrgen.contract.dto.SignResponse sign(
             @RequestBody com.example.csrgen.contract.dto.SignRequest request) {
         return signService.sign(request);
+    }
+
+    /** Convert a key (or the key inside a cert/CSR) into every format we support. */
+    @PostMapping(value = "/convert-key", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public com.example.csrgen.contract.dto.KeyConvertResponse convertKey(
+            @RequestBody com.example.csrgen.contract.dto.KeyConvertRequest request) {
+        return keyConvertService.convert(request);
+    }
+
+    /** Order + validate a pasted certificate bundle into a leaf→root chain. */
+    @PostMapping(value = "/chain", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public com.example.csrgen.contract.dto.ChainResponse chain(
+            @RequestBody com.example.csrgen.contract.dto.ChainRequest request) {
+        return chainService.analyze(request);
     }
 }

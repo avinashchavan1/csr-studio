@@ -8,6 +8,8 @@ import { DecodeView } from "./views/DecodeView.jsx";
 import { QuantumScanView } from "./views/QuantumScanView.jsx";
 import { CompareView } from "./views/CompareView.jsx";
 import { VerifyView } from "./views/VerifyView.jsx";
+import { ConvertView } from "./views/ConvertView.jsx";
+import { ChainView } from "./views/ChainView.jsx";
 import { HistoryView } from "./views/HistoryView.jsx";
 import { ServerView } from "./views/ServerView.jsx";
 import * as api from "./lib/api.js";
@@ -25,6 +27,8 @@ const NAV = [
   { id: "generate", label: "Generate CSR", icon: "cert" },
   { id: "decode", label: "Decode / Inspect", icon: "search" },
   { id: "verify", label: "Sign & Verify", icon: "check" },
+  { id: "convert", label: "Key Converter", icon: "refresh" },
+  { id: "chain", label: "Chain Builder", icon: "link" },
   { id: "quantum", label: "Quantum Scan", icon: "spark" },
   { id: "compare", label: "Compare", icon: "layers" },
   { id: "history", label: "History", icon: "history" },
@@ -43,6 +47,10 @@ const ROUTE_SEO = {
     desc: "Decode any Certificate Signing Request: read the subject, SANs, key strength, signature validity and extensions, and check it matches your private key." },
   verify: { title: "Sign & Verify a Signature Online — RSA, ECDSA, Ed25519 & PQC | PQCert",
     desc: "Sign a message with a private key or verify a digital signature online — detached, or certificate-by-issuer. Classical and post-quantum (ML-DSA, SLH-DSA, Falcon)." },
+  convert: { title: "Key Converter — PEM to DER, PKCS#8 to PKCS#1, JWK & SSH Online | PQCert",
+    desc: "Convert any key online: PEM ↔ DER, PKCS#8 ↔ PKCS#1/SEC1, extract the public key, export JWK and OpenSSH formats, and get SPKI fingerprints. RSA, ECDSA, Ed25519 and post-quantum." },
+  chain: { title: "Certificate Chain Builder & Validator Online | PQCert",
+    desc: "Paste a messy certificate bundle and get the correct leaf→root order, per-link signature checks, expiry and CA-flag validation, and the missing intermediate spotted — classical and PQC chains." },
   quantum: { title: "Quantum-Readiness Scanner — Is Your Site Quantum-Safe? | PQCert",
     desc: "Scan any live domain, CSR or certificate for 'harvest now, decrypt later' risk and get a post-quantum letter grade with a migration plan." },
   compare: { title: "Compare Two CSRs — Field-by-Field Diff | PQCert",
@@ -183,6 +191,8 @@ export default function App() {
     generate: apiMode === "demo" ? "Build a signing request — running the in-browser demo until your backend is connected." : "Build a signing request; your backend creates the key and signs it.",
     decode: "Inspect and verify any existing PKCS#10 request.",
     verify: "Sign a message with a private key, or verify a signature — detached or certificate-by-issuer. Classical + post-quantum.",
+    convert: "Paste any key, cert or CSR — get every format: PKCS#8/PKCS#1, DER, JWK, OpenSSH, fingerprints.",
+    chain: "Paste a certificate bundle in any order — get the corrected chain, validated link by link.",
     quantum: "Grade a live site, CSR or certificate against the post-quantum threat.",
     compare: "Diff two CSRs field by field before submitting.",
     history: apiMode === "connected" ? "Saved requests stored on " + api.host() + " (CSR + metadata only)." : "Saved requests from this browser.",
@@ -243,6 +253,8 @@ export default function App() {
           {view === "generate" && <GenerateView key={seed && seed._ts} seed={seed} onGenerated={onGenerated} push={push} />}
           {view === "decode" && <DecodeView push={push} seedCsr={seedCsr} />}
           {view === "verify" && <VerifyView push={push} />}
+          {view === "convert" && <ConvertView push={push} />}
+          {view === "chain" && <ChainView push={push} />}
           {view === "quantum" && <QuantumScanView push={push} seedHost={seedHost}
             onGenerateHybrid={(target) => { setSeed({ cn: /^[a-zA-Z0-9.-]+$/.test(target || "") ? target : "", _ts: Date.now() }); go("generate"); push("Use the Hybrid PQC button below"); }} />}
           {view === "compare" && <CompareView push={push} />}
