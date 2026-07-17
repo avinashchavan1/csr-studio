@@ -8,6 +8,9 @@ describe("pathToView", () => {
     ["/decode", "decode"],
     ["/decode/", "decode"],
     ["/verify", "verify"],
+    ["/convert", "convert"],
+    ["/convert/", "convert"],
+    ["/chain", "chain"],
     ["/quantum", "quantum"],
     ["/compare", "compare"],
     ["/history", "history"],
@@ -43,6 +46,8 @@ describe("viewToPath", () => {
     ["generate", "/"],
     ["decode", "/decode"],
     ["verify", "/verify"],
+    ["convert", "/convert"],
+    ["chain", "/chain"],
     ["quantum", "/quantum"],
     ["compare", "/compare"],
     ["history", "/history"],
@@ -56,7 +61,7 @@ describe("viewToPath", () => {
 });
 
 describe("round-trip: known views survive viewToPath -> pathToView", () => {
-  it.each(["decode", "verify", "quantum", "compare", "history", "server"])("%s", (view) => {
+  it.each(["decode", "verify", "convert", "chain", "quantum", "compare", "history", "server"])("%s", (view) => {
     expect(pathToView(viewToPath(view))).toBe(view);
   });
   it("generate maps to /", () => {

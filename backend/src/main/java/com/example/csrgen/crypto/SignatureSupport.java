@@ -1,7 +1,16 @@
 package com.example.csrgen.crypto;
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.openssl.jcajce.JcaPEMKeyConverter;
+
+import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
+import java.security.KeyFactory;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.interfaces.RSAPrivateCrtKey;
+import java.security.spec.RSAPublicKeySpec;
 import java.util.Base64;
 
 /**
@@ -90,5 +99,46 @@ final class SignatureSupport {
         StringBuilder sb = new StringBuilder(b.length * 2);
         for (byte x : b) sb.append(String.format("%02x", x));
         return sb.toString();
+    }
+
+    /**
+     * Derives the public key from a private key. Modern BC keys (Ed25519, ML-DSA,
+     * SLH-DSA, Falcon) expose getPublicKey(); RSA is rebuilt from CRT params; EC is
+     * derived by scalar-multiplying the base point. Returns null if none applies.
+     */
+    static PublicKey derivePublicKey(PrivateKey priv) {
+        // BC key types (Ed25519 + PQC) expose getPublicKey() directly.
+        try {
+            Method m = priv.getClass().getMethod("getPublicKey");
+            Object o = m.invoke(priv);
+            if (o instanceof PublicKey pk) {
+                return pk;
+            }
+        } catch (ReflectiveOperationException ignored) {
+            // not a key type that exposes getPublicKey()
+        }
+        try {
+            if (priv instanceof RSAPrivateCrtKey crt) {
+                return KeyFactory.getInstance("RSA", BouncyCastleProvider.PROVIDER_NAME)
+                        .generatePublic(new RSAPublicKeySpec(crt.getModulus(), crt.getPublicExponent()));
+            }
+            if (priv instanceof org.bouncycastle.jce.interfaces.ECPrivateKey ec) {
+                org.bouncycastle.jce.spec.ECParameterSpec params = ec.getParameters();
+                org.bouncycastle.math.ec.ECPoint q = params.getG().multiply(ec.getD()).normalize();
+                return KeyFactory.getInstance("EC", BouncyCastleProvider.PROVIDER_NAME)
+                        .generatePublic(new org.bouncycastle.jce.spec.ECPublicKeySpec(q, params));
+            }
+            // Ed25519: derive the public point from the PKCS#8 seed.
+            var lp = org.bouncycastle.crypto.util.PrivateKeyFactory.createKey(priv.getEncoded());
+            if (lp instanceof org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters ed) {
+                var spki = org.bouncycastle.crypto.util.SubjectPublicKeyInfoFactory
+                        .createSubjectPublicKeyInfo(ed.generatePublicKey());
+                return new JcaPEMKeyConverter().setProvider(BouncyCastleProvider.PROVIDER_NAME)
+                        .getPublicKey(spki);
+            }
+        } catch (Exception e) {
+            return null;
+        }
+        return null;
     }
 }

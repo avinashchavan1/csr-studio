@@ -179,4 +179,50 @@ class ApiFlowIntegrationTest {
                 .andExpect(jsonPath("$.classical.csr").value(org.hamcrest.Matchers.containsString("CERTIFICATE REQUEST")))
                 .andExpect(jsonPath("$.pqc.csr").value(org.hamcrest.Matchers.containsString("CERTIFICATE REQUEST")));
     }
+
+    @Test
+    void convertKeyOverHttp() throws Exception {
+        // generate an EC CSR, feed its private key through the converter,
+        // then feed the returned public key back in — fingerprints must agree
+        String body = genBody(Map.of("algorithm", "ECDSA", "curve", "P-256", "format", "PKCS#8"));
+        JsonNode g = postJson("/csr/generate", body);
+        String keyPem = g.get("privateKey").asText();
+
+        JsonNode c = postJson("/csr/convert-key", json.writeValueAsString(Map.of("input", keyPem)));
+        assertThat(c.get("inputType").asText()).isEqualTo("private-key");
+        assertThat(c.get("keyKind").asText()).isEqualTo("EC");
+        assertThat(c.get("keyDetail").asText()).isEqualTo("P-256");
+        assertThat(c.get("pkcs8Pem").asText()).contains("BEGIN PRIVATE KEY");
+        assertThat(c.get("traditionalPem").asText()).contains("BEGIN EC PRIVATE KEY");
+        assertThat(c.get("jwk").get("crv").asText()).isEqualTo("P-256");
+        assertThat(c.get("sshPublicKey").asText()).startsWith("ecdsa-sha2-nistp256 ");
+
+        JsonNode p = postJson("/csr/convert-key",
+                json.writeValueAsString(Map.of("input", c.get("publicPem").asText())));
+        assertThat(p.get("inputType").asText()).isEqualTo("public-key");
+        assertThat(p.get("spkiSha256").asText()).isEqualTo(c.get("spkiSha256").asText());
+    }
+
+    @Test
+    void chainOverHttp() throws Exception {
+        // self-sign a cert, then run it through the chain analyser
+        String body = genBody(Map.of("algorithm", "RSA", "size", 2048, "format", "PKCS#8"));
+        JsonNode s = postJson("/csr/self-signed?days=90", body);
+        String cert = s.get("certificate").asText();
+
+        JsonNode r = postJson("/csr/chain", json.writeValueAsString(Map.of("certificates", cert)));
+        assertThat(r.get("complete").asBoolean()).isTrue();
+        assertThat(r.get("chain")).hasSize(1);
+        assertThat(r.get("chain").get(0).get("selfSigned").asBoolean()).isTrue();
+        assertThat(r.get("chain").get(0).get("keyKind").asText()).isEqualTo("RSA");
+        assertThat(r.get("orderedPem").asText()).contains("BEGIN CERTIFICATE");
+
+        // pasting a private key must be refused with a friendly error
+        String keyPem = s.get("privateKey").asText();
+        mvc.perform(post("/csr/chain").contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(Map.of("certificates", keyPem))))
+                .andExpect(status().is4xxClientError())
+                .andExpect(jsonPath("$.error.message").value(
+                        org.hamcrest.Matchers.containsString("never paste private keys")));
+    }
 }

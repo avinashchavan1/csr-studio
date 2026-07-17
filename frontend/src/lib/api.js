@@ -300,6 +300,16 @@ export async function sign(payload) {
   if (mode() === "demo") throw new ApiError("Signing requires a connected backend.");
   return (await request("/csr/sign", { body: payload, retries: config.retries })).data;
 }
+/** Convert a key (or the key in a cert/CSR) into every format: PKCS#8/PKCS#1, DER, JWK, SSH, fingerprints. */
+export async function convertKey(input) {
+  if (mode() === "demo") throw new ApiError("Key conversion requires a connected backend.");
+  return (await request("/csr/convert-key", { body: { input }, retries: config.retries })).data;
+}
+/** Order + validate a pasted certificate bundle into a leaf→root chain. */
+export async function chain(certificates) {
+  if (mode() === "demo") throw new ApiError("Chain analysis requires a connected backend.");
+  return (await request("/csr/chain", { body: { certificates }, retries: config.retries })).data;
+}
 export async function testConnection() {
   if (mode() === "demo") return { ok: false, demo: true };
   try {
@@ -406,5 +416,5 @@ export const SAMPLES = {
   }
 };
 
-const CSRApi = { generate, hybrid, quantumScan, shareCreate, shareGet, recordGet, selfSigned, decode, lint, pkcs12, match, verify, sign, getConfig, setConfig, mode, host, testConnection, generateRequest, historyList, historySave, historyDelete, historyClear, ApiError, SAMPLES, DEFAULTS };
+const CSRApi = { generate, hybrid, quantumScan, shareCreate, shareGet, recordGet, selfSigned, decode, lint, pkcs12, match, verify, sign, convertKey, chain, getConfig, setConfig, mode, host, testConnection, generateRequest, historyList, historySave, historyDelete, historyClear, ApiError, SAMPLES, DEFAULTS };
 export default CSRApi;
